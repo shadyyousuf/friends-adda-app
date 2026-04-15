@@ -1,11 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import { signOut } from '../utils/auth'
 import {
+  approvedMemberProfilesQueryOptions,
   approveUser,
-  listApprovedMemberProfiles,
-  listPendingProfiles,
+  pendingProfilesQueryOptions,
+  profileKeys,
   promoteUserToAdmin,
   updateOwnProfile,
 } from '../utils/profile'
@@ -17,6 +19,7 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth()
+  const queryClient = useQueryClient()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [bloodGroup, setBloodGroup] = useState(profile?.blood_group ?? '')
   const [isSavingProfile, setIsSavingProfile] = useState(false)
@@ -24,25 +27,31 @@ function SettingsPage() {
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [adminError, setAdminError] = useState<string | null>(null)
-  const [isAdminLoading, setIsAdminLoading] = useState(false)
-  const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([])
-  const [approvedMembers, setApprovedMembers] = useState<Profile[]>([])
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '')
     setBloodGroup(profile?.blood_group ?? '')
   }, [profile?.full_name, profile?.blood_group])
 
-  useEffect(() => {
-    if (profile?.role !== 'admin') {
-      setPendingProfiles([])
-      setApprovedMembers([])
-      setAdminError(null)
-      return
-    }
-
-    void refreshAdminLists()
-  }, [profile?.role])
+  const isAdmin = profile?.role === 'admin'
+  const pendingProfilesQuery = useQuery({
+    ...pendingProfilesQueryOptions(),
+    enabled: isAdmin,
+  })
+  const approvedMembersQuery = useQuery({
+    ...approvedMemberProfilesQueryOptions(),
+    enabled: isAdmin,
+  })
+  const pendingProfiles = pendingProfilesQuery.data ?? []
+  const approvedMembers = approvedMembersQuery.data ?? []
+  const queryAdminError =
+    pendingProfilesQuery.error instanceof Error
+      ? pendingProfilesQuery.error.message
+      : approvedMembersQuery.error instanceof Error
+        ? approvedMembersQuery.error.message
+        : pendingProfilesQuery.error || approvedMembersQuery.error
+          ? 'Failed to load admin data.'
+          : null
 
   async function handleSignOut() {
     setIsSigningOut(true)
@@ -75,22 +84,10 @@ function SettingsPage() {
 
   async function refreshAdminLists() {
     setAdminError(null)
-    setIsAdminLoading(true)
-
-    try {
-      const [pending, approved] = await Promise.all([
-        listPendingProfiles(),
-        listApprovedMemberProfiles(),
-      ])
-      setPendingProfiles(pending)
-      setApprovedMembers(approved)
-    } catch (error) {
-      setAdminError(
-        error instanceof Error ? error.message : 'Failed to load admin data.',
-      )
-    } finally {
-      setIsAdminLoading(false)
-    }
+    await Promise.all([
+      pendingProfilesQuery.refetch(),
+      approvedMembersQuery.refetch(),
+    ])
   }
 
   async function handleApprove(userId: string) {
@@ -98,7 +95,11 @@ function SettingsPage() {
 
     try {
       await approveUser(userId)
-      await refreshAdminLists()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: profileKeys.pending }),
+        queryClient.invalidateQueries({ queryKey: profileKeys.approvedMembers }),
+        queryClient.invalidateQueries({ queryKey: profileKeys.approved }),
+      ])
     } catch (error) {
       setAdminError(
         error instanceof Error ? error.message : 'Failed to approve user.',
@@ -111,7 +112,11 @@ function SettingsPage() {
 
     try {
       await promoteUserToAdmin(userId)
-      await refreshAdminLists()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: profileKeys.pending }),
+        queryClient.invalidateQueries({ queryKey: profileKeys.approvedMembers }),
+        queryClient.invalidateQueries({ queryKey: profileKeys.approved }),
+      ])
     } catch (error) {
       setAdminError(
         error instanceof Error ? error.message : 'Failed to promote user.',
@@ -211,7 +216,7 @@ function SettingsPage() {
         </form>
       </section>
 
-      {profile?.role === 'admin' ? (
+      {isAdmin ? (
         <section className="glass-card panel stack-lg">
           <div className="stack-sm">
             <p className="eyebrow">Admin</p>
@@ -222,15 +227,26 @@ function SettingsPage() {
           </div>
 
           {adminError ? <p className="form-error">{adminError}</p> : null}
+          {queryAdminError ? <p className="form-error">{queryAdminError}</p> : null}
 
           <div className="actions-row">
             <button
               type="button"
               className="secondary-button"
               onClick={() => void refreshAdminLists()}
-              disabled={isAdminLoading}
+              disabled={
+                pendingProfilesQuery.isPending ||
+                pendingProfilesQuery.isRefetching ||
+                approvedMembersQuery.isPending ||
+                approvedMembersQuery.isRefetching
+              }
             >
-              {isAdminLoading ? 'Refreshing...' : 'Refresh admin lists'}
+              {pendingProfilesQuery.isPending ||
+              pendingProfilesQuery.isRefetching ||
+              approvedMembersQuery.isPending ||
+              approvedMembersQuery.isRefetching
+                ? 'Refreshing...'
+                : 'Refresh admin lists'}
             </button>
           </div>
 

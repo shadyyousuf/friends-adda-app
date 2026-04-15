@@ -1,8 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthProvider'
 import {
-  loadCompletedEventsForCurrentUser,
+  completedEventsQueryOptions,
   type EventWithRole,
 } from '../utils/events'
 
@@ -12,35 +12,17 @@ export const Route = createFileRoute('/history')({
 
 function HistoryPage() {
   const { user, profile, isLoading } = useAuth()
-  const [events, setEvents] = useState<EventWithRole[]>([])
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!user || !profile?.is_approved) {
-      setEvents([])
-      setErrorMessage(null)
-      return
-    }
-
-    void refreshHistory()
-  }, [user?.id, profile?.is_approved])
-
-  async function refreshHistory() {
-    setErrorMessage(null)
-    setIsHistoryLoading(true)
-
-    try {
-      const completedEvents = await loadCompletedEventsForCurrentUser()
-      setEvents(completedEvents)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to load history.',
-      )
-    } finally {
-      setIsHistoryLoading(false)
-    }
-  }
+  const historyQuery = useQuery({
+    ...completedEventsQueryOptions(),
+    enabled: Boolean(user && profile?.is_approved),
+  })
+  const events: EventWithRole[] = historyQuery.data ?? []
+  const errorMessage =
+    historyQuery.error instanceof Error
+      ? historyQuery.error.message
+      : historyQuery.error
+        ? 'Failed to load history.'
+        : null
 
   if (isLoading) {
     return (
@@ -73,10 +55,12 @@ function HistoryPage() {
           <button
             type="button"
             className="secondary-button"
-            onClick={() => void refreshHistory()}
-            disabled={isHistoryLoading}
+            onClick={() => void historyQuery.refetch()}
+            disabled={historyQuery.isPending || historyQuery.isRefetching}
           >
-            {isHistoryLoading ? 'Refreshing...' : 'Refresh'}
+            {historyQuery.isPending || historyQuery.isRefetching
+              ? 'Refreshing...'
+              : 'Refresh'}
           </button>
         </div>
         <p className="muted-copy">
@@ -91,7 +75,9 @@ function HistoryPage() {
           <span className="status-chip">{events.length}</span>
         </div>
 
-        {events.length === 0 ? (
+        {historyQuery.isPending && events.length === 0 ? (
+          <p className="muted-copy">Loading completed events.</p>
+        ) : events.length === 0 ? (
           <p className="muted-copy">
             No completed events are available yet.
           </p>

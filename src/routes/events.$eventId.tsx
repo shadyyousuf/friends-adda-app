@@ -1,11 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import {
+  eventDetailQueryOptions,
+  eventKeys,
   markEventFundPaid,
   demoteEventMemberToMember,
-  loadEventDetail,
   promoteEventMemberToCoCaptain,
   removeEventMember,
   spinRandomPicker,
@@ -20,43 +22,27 @@ export const Route = createFileRoute('/events/$eventId')({
 function EventDetailPage() {
   const { eventId } = Route.useParams()
   const { user, profile, isLoading } = useAuth()
-  const [detail, setDetail] = useState<EventDetailData>({
+  const queryClient = useQueryClient()
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [activeAction, setActiveAction] = useState<string | null>(null)
+  const [billAmount, setBillAmount] = useState('')
+  const detailQuery = useQuery({
+    ...eventDetailQueryOptions(eventId),
+    enabled: Boolean(user && profile?.is_approved),
+  })
+  const detail: EventDetailData = detailQuery.data ?? {
     event: null,
     subscribers: [],
     funds: [],
     activities: [],
-  })
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [activeAction, setActiveAction] = useState<string | null>(null)
-  const [billAmount, setBillAmount] = useState('')
-
-  useEffect(() => {
-    if (!user || !profile?.is_approved) {
-      setDetail({ event: null, subscribers: [], funds: [], activities: [] })
-      setErrorMessage(null)
-      return
-    }
-
-    void refreshDetail()
-  }, [eventId, user?.id, profile?.is_approved])
-
-  async function refreshDetail() {
-    setErrorMessage(null)
-    setIsLoadingDetail(true)
-
-    try {
-      const data = await loadEventDetail(eventId)
-      setDetail(data)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to load event detail.',
-      )
-    } finally {
-      setIsLoadingDetail(false)
-    }
   }
+  const detailError =
+    detailQuery.error instanceof Error
+      ? detailQuery.error.message
+      : detailQuery.error
+        ? 'Failed to load event detail.'
+        : null
 
   async function handleAction(
     action: 'promote' | 'demote' | 'remove',
@@ -75,7 +61,9 @@ function EventDetailPage() {
         await removeEventMember(eventId, userId)
       }
 
-      await refreshDetail()
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.detail(eventId),
+      })
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -117,7 +105,17 @@ function EventDetailPage() {
     )
   }
 
-  if (!detail.event && !isLoadingDetail) {
+  if (detailQuery.isPending && !detail.event) {
+    return (
+      <section className="glass-card panel stack-md">
+        <p className="eyebrow">Event</p>
+        <h2 className="panel-title">Loading event</h2>
+        <p className="muted-copy">Fetching the event overview and member data.</p>
+      </section>
+    )
+  }
+
+  if (!detail.event && !detailQuery.isPending) {
     return (
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>
@@ -168,6 +166,7 @@ function EventDetailPage() {
             value={String(detail.subscribers.length)}
           />
         </div>
+        {detailError ? <p className="form-error">{detailError}</p> : null}
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       </section>
 
@@ -201,7 +200,9 @@ function EventDetailPage() {
           activeAction={activeAction}
           onMarkPaid={(userId) => void handleModuleAction(`fund:${userId}`, async () => {
             await markEventFundPaid(eventId, userId)
-            await refreshDetail()
+            await queryClient.invalidateQueries({
+              queryKey: eventKeys.detail(eventId),
+            })
           })}
         />
       ) : null}
@@ -292,7 +293,9 @@ function EventDetailPage() {
     await handleModuleAction('spin', async () => {
       await spinRandomPicker(eventId, amount)
       setBillAmount('')
-      await refreshDetail()
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.detail(eventId),
+      })
     })
   }
 }

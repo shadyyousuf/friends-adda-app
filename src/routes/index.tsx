@@ -1,16 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import {
-  startTransition,
-  useEffect,
-  useState,
-  type FormEvent,
-} from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import {
   createEventWithCaptain,
+  dashboardQueryOptions,
+  eventKeys,
   joinPublicEvent,
-  loadDashboardData,
   type DashboardData,
   type EventType,
   type EventVisibility,
@@ -23,12 +20,7 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const { user, profile, isLoading } = useAuth()
-  const [dashboardData, setDashboardData] = useState<DashboardData>({
-    myEvents: [],
-    discoverEvents: [],
-  })
-  const [isDashboardLoading, setIsDashboardLoading] = useState(false)
-  const [dashboardError, setDashboardError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -36,35 +28,26 @@ function HomePage() {
   const [visibility, setVisibility] = useState<EventVisibility>('public')
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [joinError, setJoinError] = useState<string | null>(null)
   const [activeJoinEventId, setActiveJoinEventId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user || !profile?.is_approved) {
-      setDashboardData({ myEvents: [], discoverEvents: [] })
-      setDashboardError(null)
-      return
-    }
-
-    void refreshDashboard()
-  }, [user?.id, profile?.is_approved])
-
-  async function refreshDashboard() {
-    setDashboardError(null)
-    setIsDashboardLoading(true)
-
-    try {
-      const data = await loadDashboardData()
-      startTransition(() => {
-        setDashboardData(data)
-      })
-    } catch (error) {
-      setDashboardError(
-        error instanceof Error ? error.message : 'Failed to load dashboard.',
-      )
-    } finally {
-      setIsDashboardLoading(false)
-    }
+  const canLoadDashboard = Boolean(user && profile?.is_approved)
+  const dashboardQuery = useQuery({
+    ...dashboardQueryOptions(),
+    enabled: canLoadDashboard,
+  })
+  const dashboardData: DashboardData = dashboardQuery.data ?? {
+    myEvents: [],
+    discoverEvents: [],
   }
+  const dashboardError =
+    dashboardQuery.error instanceof Error
+      ? dashboardQuery.error.message
+      : dashboardQuery.error
+        ? 'Failed to load dashboard.'
+        : null
+  const isDashboardLoading =
+    dashboardQuery.isPending || dashboardQuery.isRefetching
 
   async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -83,7 +66,7 @@ function HomePage() {
       setEventType('fund_tracker')
       setVisibility('public')
       setIsCreateOpen(false)
-      await refreshDashboard()
+      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
     } catch (error) {
       setCreateError(
         error instanceof Error ? error.message : 'Failed to create event.',
@@ -94,19 +77,21 @@ function HomePage() {
   }
 
   async function handleJoinEvent(eventId: string) {
-    setDashboardError(null)
+    setJoinError(null)
     setActiveJoinEventId(eventId)
 
     try {
       await joinPublicEvent(eventId)
-      await refreshDashboard()
+      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
     } catch (error) {
-      setDashboardError(
-        error instanceof Error ? error.message : 'Failed to join event.',
-      )
+      setJoinError(error instanceof Error ? error.message : 'Failed to join event.')
     } finally {
       setActiveJoinEventId(null)
     }
+  }
+
+  async function handleRefreshDashboard() {
+    await dashboardQuery.refetch()
   }
 
   if (isLoading) {
@@ -161,6 +146,18 @@ function HomePage() {
     return null
   }
 
+  if (dashboardQuery.isPending && dashboardData.myEvents.length === 0) {
+    return (
+      <section className="glass-card panel stack-md">
+        <p className="eyebrow">Dashboard</p>
+        <h2 className="panel-title">Loading your events</h2>
+        <p className="muted-copy">
+          Fetching your subscribed events and the latest public events.
+        </p>
+      </section>
+    )
+  }
+
   return (
     <div className="stack-lg">
       <section className="glass-card panel stack-md">
@@ -172,7 +169,7 @@ function HomePage() {
           <button
             type="button"
             className="secondary-button"
-            onClick={() => void refreshDashboard()}
+            onClick={() => void handleRefreshDashboard()}
             disabled={isDashboardLoading}
           >
             {isDashboardLoading ? 'Refreshing...' : 'Refresh'}
@@ -183,6 +180,7 @@ function HomePage() {
           events that are still open for new members.
         </p>
         {dashboardError ? <p className="form-error">{dashboardError}</p> : null}
+        {joinError ? <p className="form-error">{joinError}</p> : null}
       </section>
 
       <section className="glass-card panel stack-md">

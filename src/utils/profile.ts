@@ -1,3 +1,4 @@
+import { queryOptions } from '@tanstack/react-query'
 import { supabase, type Database } from './supabase'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -5,6 +6,33 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 type UpdateOwnProfileInput = {
   fullName: string
   bloodGroup: string
+}
+
+export const profileKeys = {
+  approved: ['profiles', 'approved'] as const,
+  approvedMembers: ['profiles', 'approved-members'] as const,
+  pending: ['profiles', 'pending'] as const,
+}
+
+export function approvedProfilesQueryOptions() {
+  return queryOptions({
+    queryKey: profileKeys.approved,
+    queryFn: listApprovedProfiles,
+  })
+}
+
+export function approvedMemberProfilesQueryOptions() {
+  return queryOptions({
+    queryKey: profileKeys.approvedMembers,
+    queryFn: listApprovedMemberProfiles,
+  })
+}
+
+export function pendingProfilesQueryOptions() {
+  return queryOptions({
+    queryKey: profileKeys.pending,
+    queryFn: listPendingProfiles,
+  })
 }
 
 export async function updateOwnProfile({

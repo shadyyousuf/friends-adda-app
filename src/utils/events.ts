@@ -1,3 +1,4 @@
+import { queryOptions } from '@tanstack/react-query'
 import { supabase, type Database } from './supabase'
 
 type EventRow = Database['public']['Tables']['events']['Row']
@@ -33,6 +34,33 @@ export type EventDetailData = {
   subscribers: EventSubscriberWithProfile[]
   funds: FundRow[]
   activities: ActivityRow[]
+}
+
+export const eventKeys = {
+  dashboard: ['events', 'dashboard'] as const,
+  history: ['events', 'history'] as const,
+  detail: (eventId: string) => ['events', 'detail', eventId] as const,
+}
+
+export function dashboardQueryOptions() {
+  return queryOptions({
+    queryKey: eventKeys.dashboard,
+    queryFn: loadDashboardData,
+  })
+}
+
+export function eventDetailQueryOptions(eventId: string) {
+  return queryOptions({
+    queryKey: eventKeys.detail(eventId),
+    queryFn: () => loadEventDetail(eventId),
+  })
+}
+
+export function completedEventsQueryOptions() {
+  return queryOptions({
+    queryKey: eventKeys.history,
+    queryFn: loadCompletedEventsForCurrentUser,
+  })
 }
 
 export async function loadDashboardData(): Promise<DashboardData> {

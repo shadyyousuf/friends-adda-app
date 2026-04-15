@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useDeferredValue, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useDeferredValue, useState } from 'react'
 import { useAuth } from '../components/AuthProvider'
-import { listApprovedProfiles } from '../utils/profile'
+import { approvedProfilesQueryOptions } from '../utils/profile'
 import type { Database } from '../utils/supabase'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -12,37 +13,19 @@ export const Route = createFileRoute('/members')({
 
 function MembersPage() {
   const { user, profile, isLoading } = useAuth()
-  const [members, setMembers] = useState<Profile[]>([])
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
-  const [isMembersLoading, setIsMembersLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!user || !profile?.is_approved) {
-      setMembers([])
-      setErrorMessage(null)
-      return
-    }
-
-    void refreshMembers()
-  }, [user?.id, profile?.is_approved])
-
-  async function refreshMembers() {
-    setErrorMessage(null)
-    setIsMembersLoading(true)
-
-    try {
-      const approvedProfiles = await listApprovedProfiles()
-      setMembers(approvedProfiles)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to load members.',
-      )
-    } finally {
-      setIsMembersLoading(false)
-    }
-  }
+  const membersQuery = useQuery({
+    ...approvedProfilesQueryOptions(),
+    enabled: Boolean(user && profile?.is_approved),
+  })
+  const members = membersQuery.data ?? []
+  const errorMessage =
+    membersQuery.error instanceof Error
+      ? membersQuery.error.message
+      : membersQuery.error
+        ? 'Failed to load members.'
+        : null
 
   const normalizedQuery = deferredQuery.trim().toLowerCase()
   const filteredMembers = members.filter((member) => {
@@ -93,10 +76,12 @@ function MembersPage() {
           <button
             type="button"
             className="secondary-button"
-            onClick={() => void refreshMembers()}
-            disabled={isMembersLoading}
+            onClick={() => void membersQuery.refetch()}
+            disabled={membersQuery.isPending || membersQuery.isRefetching}
           >
-            {isMembersLoading ? 'Refreshing...' : 'Refresh'}
+            {membersQuery.isPending || membersQuery.isRefetching
+              ? 'Refreshing...'
+              : 'Refresh'}
           </button>
         </div>
         <p className="muted-copy">
@@ -122,7 +107,9 @@ function MembersPage() {
           <span className="status-chip">{filteredMembers.length}</span>
         </div>
 
-        {filteredMembers.length === 0 ? (
+        {membersQuery.isPending && members.length === 0 ? (
+          <p className="muted-copy">Loading approved members.</p>
+        ) : filteredMembers.length === 0 ? (
           <p className="muted-copy">
             No approved members matched the current search.
           </p>
