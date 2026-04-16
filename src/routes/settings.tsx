@@ -221,9 +221,6 @@ function SettingsPage() {
           <div className="stack-sm">
             <p className="eyebrow">Admin</p>
             <h2 className="panel-title">User approvals and promotion</h2>
-            <p className="muted-copy">
-              Approve new users and promote approved members to global admin.
-            </p>
           </div>
 
           {adminError ? <p className="form-error">{adminError}</p> : null}
@@ -253,7 +250,10 @@ function SettingsPage() {
           <div className="stack-md">
             <h3 className="section-title">Pending approvals</h3>
             {pendingProfiles.length === 0 ? (
-              <p className="muted-copy">No users are waiting for approval.</p>
+              <div className="empty-state">
+                <h4 className="empty-state-title">Approval queue is clear</h4>
+                <p className="muted-copy">No users are waiting for approval right now.</p>
+              </div>
             ) : (
               <div className="stack-sm">
                 {pendingProfiles.map((pendingProfile) => (
@@ -273,7 +273,13 @@ function SettingsPage() {
           <div className="stack-md">
             <h3 className="section-title">Approved members</h3>
             {approvedMembers.length === 0 ? (
-              <p className="muted-copy">No approved members are available to promote.</p>
+              <div className="empty-state">
+                <h4 className="empty-state-title">No promotion candidates</h4>
+                <p className="muted-copy">
+                  Approved members will appear here once they are available for
+                  promotion.
+                </p>
+              </div>
             ) : (
               <div className="stack-sm">
                 {approvedMembers.map((approvedProfile) => (

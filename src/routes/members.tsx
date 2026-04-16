@@ -69,7 +69,7 @@ function MembersPage() {
     <div className="stack-lg">
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">Members</p>
             <h2 className="panel-title">Approved directory</h2>
           </div>
@@ -84,10 +84,6 @@ function MembersPage() {
               : 'Refresh'}
           </button>
         </div>
-        <p className="muted-copy">
-          Search by name or blood group. Blood groups stay visible on every card
-          to match the Phase 8 requirement.
-        </p>
         <label className="stack-xs">
           <span className="field-label">Search</span>
           <input
@@ -95,7 +91,7 @@ function MembersPage() {
             className="field-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search name or blood group"
+            placeholder="Search member name, email, or blood group"
           />
         </label>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
@@ -110,9 +106,12 @@ function MembersPage() {
         {membersQuery.isPending && members.length === 0 ? (
           <p className="muted-copy">Loading approved members.</p>
         ) : filteredMembers.length === 0 ? (
-          <p className="muted-copy">
-            No approved members matched the current search.
-          </p>
+          <div className="empty-state">
+            <h4 className="empty-state-title">No match found</h4>
+            <p className="muted-copy">
+              Try a different name, email fragment, or blood group value.
+            </p>
+          </div>
         ) : (
           <div className="stack-sm">
             {filteredMembers.map((member) => (

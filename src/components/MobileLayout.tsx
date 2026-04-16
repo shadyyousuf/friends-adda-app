@@ -1,14 +1,19 @@
 import { Link, useRouterState } from '@tanstack/react-router'
+import { RotateCw } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
+import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const { user, profile, isLoading } = useAuth()
+  const pageMeta = getPageMeta(pathname, Boolean(user), profile?.full_name ?? null)
+  const status = getStatusCopy({ user: Boolean(user), isLoading, profile })
 
+  const isDashboardRoute = pathname === '/'
   const isAuthScreen = pathname === '/login' || pathname === '/signup'
   const isSettingsRoute = pathname === '/settings'
   const showPendingScreen =
@@ -22,35 +27,46 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
 
       <div className="mobile-frame">
         <header className="glass-card topbar">
-          <div>
-            <p className="eyebrow">Friends Adda</p>
-            <h1 className="topbar-title">
-              {isAuthScreen
-                ? 'Welcome'
-                : user
-                  ? `Hi${profile?.full_name ? `, ${profile.full_name}` : ''}`
-                  : 'Plan your next group event'}
-            </h1>
+          <div className="topbar-copy">
+            <p className="eyebrow page-kicker">{pageMeta.kicker}</p>
+            <h1 className="topbar-title">{pageMeta.title}</h1>
+            {pageMeta.subtitle ? (
+              <p className="topbar-support">{pageMeta.subtitle}</p>
+            ) : null}
           </div>
-          <div className="status-chip">
-            {isLoading
-              ? 'Loading'
-              : user
-                ? profile?.role === 'admin'
-                  ? 'Admin'
-                  : profile?.is_approved
-                    ? 'Member'
-                    : 'Pending'
-                : 'Guest'}
-          </div>
+          {isDashboardRoute && user && profile?.is_approved ? (
+            <button
+              type="button"
+              className="topbar-action-button"
+              aria-label="Refresh dashboard"
+              title="Refresh dashboard"
+              onClick={() => {
+                window.dispatchEvent(new Event(DASHBOARD_REFRESH_EVENT))
+              }}
+            >
+              <RotateCw size={18} />
+            </button>
+          ) : (
+            <div className={`status-chip ${status.className}`}>{status.label}</div>
+          )}
         </header>
+
+        {!isAuthScreen && pageMeta.contextLabel && pageMeta.contextHint ? (
+          <header className="topbar-context" aria-label="Page context">
+            <span className="field-label">{pageMeta.contextLabel}</span>
+            <span className="topbar-divider" aria-hidden="true" />
+            <span className="field-label">{pageMeta.contextHint}</span>
+          </header>
+        ) : null}
 
         {showPendingScreen ? (
           <PendingApprovalCard />
         ) : showProfileSetupScreen ? (
           <ProfileSetupCard />
         ) : (
-          <main className="content-shell">{children}</main>
+          <main className="content-shell" aria-live="polite">
+            {children}
+          </main>
         )}
 
         {!isAuthScreen ? <BottomNav /> : null}
@@ -69,6 +85,10 @@ function PendingApprovalCard() {
           <p className="muted-copy">
             Your account exists, but an app admin still needs to approve it
             before you can access events and members.
+          </p>
+          <p className="section-note">
+            You can still open settings to complete your profile details and
+            confirm your blood group.
           </p>
         </div>
         <Link to="/settings" className="primary-button">
@@ -91,6 +111,10 @@ function ProfileSetupCard() {
             yet. If this persists, confirm that the SQL migration was applied in
             Supabase and then refresh.
           </p>
+          <p className="section-note">
+            Until the profile row becomes available, event data and member
+            access stay intentionally locked.
+          </p>
         </div>
         <Link to="/settings" className="primary-button">
           Open settings
@@ -98,4 +122,118 @@ function ProfileSetupCard() {
       </section>
     </main>
   )
+}
+
+function getPageMeta(
+  pathname: string,
+  isAuthenticated: boolean,
+  fullName: string | null,
+) {
+  const firstName = fullName?.trim().split(/\s+/)[0]
+
+  if (pathname === '/login') {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Welcome back',
+      subtitle: 'Log in to pick up where your group left off.',
+      contextLabel: 'Authentication',
+      contextHint: 'Secure access',
+    }
+  }
+
+  if (pathname === '/signup') {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Create account',
+      subtitle: 'Join the group space and wait for admin approval.',
+      contextLabel: 'Authentication',
+      contextHint: 'New member setup',
+    }
+  }
+
+  if (pathname === '/members') {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Member directory',
+      subtitle: '',
+      contextLabel: '',
+      contextHint: '',
+    }
+  }
+
+  if (pathname === '/history') {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Event history',
+      subtitle: '',
+      contextLabel: '',
+      contextHint: '',
+    }
+  }
+
+  if (pathname === '/settings') {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Account settings',
+      subtitle: '',
+      contextLabel: '',
+      contextHint: '',
+    }
+  }
+
+  if (pathname.startsWith('/events/')) {
+    return {
+      kicker: 'Friends Adda',
+      title: 'Event detail',
+      subtitle: 'Review members, modules, and control access from one screen.',
+      contextLabel: 'Event',
+      contextHint: 'Members and modules',
+    }
+  }
+
+  if (isAuthenticated) {
+    return {
+      kicker: 'Friends Adda',
+      title: firstName ? `Welcome, ${firstName}` : 'Welcome back',
+      subtitle: '',
+      contextLabel: '',
+      contextHint: '',
+    }
+  }
+
+  return {
+    kicker: 'Friends Adda',
+    title: 'Group events, simplified',
+    subtitle: 'Plan outings, track money, and manage roles without losing context.',
+    contextLabel: 'Overview',
+    contextHint: 'Guest view',
+  }
+}
+
+function getStatusCopy({
+  user,
+  isLoading,
+  profile,
+}: {
+  user: boolean
+  isLoading: boolean
+  profile: { role?: string | null; is_approved?: boolean | null } | null
+}) {
+  if (isLoading) {
+    return { label: 'Loading', className: '' }
+  }
+
+  if (!user) {
+    return { label: 'Guest', className: 'status-chip-guest' }
+  }
+
+  if (profile?.role === 'admin') {
+    return { label: 'Admin', className: 'status-chip-admin' }
+  }
+
+  if (profile?.is_approved) {
+    return { label: 'Member', className: 'status-chip-member' }
+  }
+
+  return { label: 'Pending', className: 'status-chip-pending' }
 }

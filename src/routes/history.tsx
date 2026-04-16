@@ -48,7 +48,7 @@ function HistoryPage() {
     <div className="stack-lg">
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">History</p>
             <h2 className="panel-title">Completed events</h2>
           </div>
@@ -63,9 +63,6 @@ function HistoryPage() {
               : 'Refresh'}
           </button>
         </div>
-        <p className="muted-copy">
-          This list only includes completed events where you were a subscriber.
-        </p>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       </section>
 
@@ -78,9 +75,13 @@ function HistoryPage() {
         {historyQuery.isPending && events.length === 0 ? (
           <p className="muted-copy">Loading completed events.</p>
         ) : events.length === 0 ? (
-          <p className="muted-copy">
-            No completed events are available yet.
-          </p>
+          <div className="empty-state">
+            <h4 className="empty-state-title">No completed events yet</h4>
+            <p className="muted-copy">
+              Finished events will appear here once captains or admins mark them
+              completed.
+            </p>
+          </div>
         ) : (
           <div className="history-timeline">
             {events.map((event) => (

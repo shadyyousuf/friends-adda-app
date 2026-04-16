@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import {
   createEventWithCaptain,
@@ -13,6 +13,7 @@ import {
   type EventVisibility,
   type EventWithRole,
 } from '../utils/events'
+import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -48,6 +49,18 @@ function HomePage() {
         : null
   const isDashboardLoading =
     dashboardQuery.isPending || dashboardQuery.isRefetching
+
+  useEffect(() => {
+    function handleDashboardRefresh() {
+      void dashboardQuery.refetch()
+    }
+
+    window.addEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)
+
+    return () => {
+      window.removeEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)
+    }
+  }, [dashboardQuery])
 
   async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -88,10 +101,6 @@ function HomePage() {
     } finally {
       setActiveJoinEventId(null)
     }
-  }
-
-  async function handleRefreshDashboard() {
-    await dashboardQuery.refetch()
   }
 
   if (isLoading) {
@@ -160,32 +169,16 @@ function HomePage() {
 
   return (
     <div className="stack-lg">
-      <section className="glass-card panel stack-md">
-        <div className="split-header">
-          <div className="stack-xs">
-            <p className="eyebrow">Dashboard</p>
-            <h2 className="panel-title">Your active event space</h2>
-          </div>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void handleRefreshDashboard()}
-            disabled={isDashboardLoading}
-          >
-            {isDashboardLoading ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-        <p className="muted-copy">
-          Create events, track the ones you belong to, and discover public
-          events that are still open for new members.
-        </p>
-        {dashboardError ? <p className="form-error">{dashboardError}</p> : null}
-        {joinError ? <p className="form-error">{joinError}</p> : null}
-      </section>
+      {dashboardError || joinError ? (
+        <section className="glass-card panel stack-md">
+          {dashboardError ? <p className="form-error">{dashboardError}</p> : null}
+          {joinError ? <p className="form-error">{joinError}</p> : null}
+        </section>
+      ) : null}
 
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">My events</p>
             <h3 className="section-title">Subscribed and active</h3>
           </div>
@@ -193,9 +186,22 @@ function HomePage() {
         </div>
 
         {dashboardData.myEvents.length === 0 ? (
-          <p className="muted-copy">
-            You have not joined or created any active events yet.
-          </p>
+          <div className="empty-state">
+            <h4 className="empty-state-title">No active events yet</h4>
+            <p className="muted-copy">
+              Create a new event to become the captain, or join an open public
+              event from the discover section below.
+            </p>
+            <div className="actions-row">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setIsCreateOpen(true)}
+              >
+                Create your first event
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="stack-sm">
             {dashboardData.myEvents.map((event) => (
@@ -207,7 +213,7 @@ function HomePage() {
 
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">Discover</p>
             <h3 className="section-title">Public events you can join</h3>
           </div>
@@ -215,9 +221,13 @@ function HomePage() {
         </div>
 
         {dashboardData.discoverEvents.length === 0 ? (
-          <p className="muted-copy">
-            No public open events are available right now.
-          </p>
+          <div className="empty-state">
+            <h4 className="empty-state-title">Nothing open right now</h4>
+            <p className="muted-copy">
+              Public events will appear here once another approved member opens
+              one up for the group.
+            </p>
+          </div>
         ) : (
           <div className="stack-sm">
             {dashboardData.discoverEvents.map((event) => (
@@ -238,8 +248,9 @@ function HomePage() {
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
           >
+            <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
-              <div className="stack-xs">
+              <div className="section-header-copy">
                 <p className="eyebrow">Create event</p>
                 <h3 className="section-title">Start a new group activity</h3>
               </div>
@@ -329,6 +340,7 @@ function HomePage() {
         className="fab-button"
         onClick={() => setIsCreateOpen(true)}
         aria-label="Create event"
+        title="Create event"
       >
         <Plus size={22} />
       </button>
@@ -357,6 +369,9 @@ function MyEventCard({ event }: { event: EventWithRole }) {
         <div className="meta-row">
           <span className="field-label">Visibility: {event.visibility}</span>
           <span className="field-label">Status: {event.status}</span>
+          <span className="field-label">
+            Created: {new Date(event.created_at).toLocaleDateString()}
+          </span>
         </div>
       </article>
     </Link>
@@ -383,8 +398,12 @@ function DiscoverEventCard({
         </div>
         <span className="event-badge">{formatEventType(event.type)}</span>
       </div>
+      <div className="card-tag-row">
+        <span className="field-label">Visibility: public</span>
+        <span className="field-label">Status: {event.status}</span>
+      </div>
       <div className="actions-row">
-        <span className="field-label">Open public event</span>
+        <span className="inline-note">Open to approved members right now.</span>
         <button
           type="button"
           className="primary-button"

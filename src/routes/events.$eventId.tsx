@@ -146,9 +146,13 @@ function EventDetailPage() {
     <div className="stack-lg">
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">Event detail</p>
             <h2 className="panel-title">{event?.title ?? 'Loading...'}</h2>
+            <p className="section-note">
+              Track the event hierarchy and the active module without leaving
+              the page.
+            </p>
           </div>
           <Link to="/" className="secondary-button">
             Back
@@ -172,22 +176,30 @@ function EventDetailPage() {
 
       <section className="glass-card panel stack-md">
         <div className="split-header">
-          <div className="stack-xs">
+          <div className="section-header-copy">
             <p className="eyebrow">Members</p>
             <h3 className="section-title">Event hierarchy</h3>
           </div>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setIsDrawerOpen(true)}
-          >
-            <Users size={16} />
-            Manage
-          </button>
+          {canManageMembers ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setIsDrawerOpen(true)}
+            >
+              <Users size={16} />
+              Manage
+            </button>
+          ) : (
+            <span className="status-chip">{detail.subscribers.length} members</span>
+          )}
         </div>
         <div className="stack-sm">
           {detail.subscribers.map((subscriber) => (
-            <SubscriberPreview key={subscriber.user_id} subscriber={subscriber} />
+            <SubscriberPreview
+              key={subscriber.user_id}
+              subscriber={subscriber}
+              isCurrentUser={subscriber.user_id === user.id}
+            />
           ))}
         </div>
       </section>
@@ -224,10 +236,15 @@ function EventDetailPage() {
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
           >
+            <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
-              <div className="stack-xs">
+              <div className="section-header-copy">
                 <p className="eyebrow">Member management</p>
                 <h3 className="section-title">Captain and admin controls</h3>
+                <p className="section-note">
+                  Promote members to co-captain, demote them back to member, or
+                  remove them from the event.
+                </p>
               </div>
               <button
                 type="button"
@@ -238,10 +255,14 @@ function EventDetailPage() {
               </button>
             </div>
 
+            <p className="drawer-footer-note">
+              Non-admins cannot demote or remove the captain, and captains
+              cannot remove themselves.
+            </p>
+
             <p className="muted-copy">
-              Promote members to co-captain, demote them back to member, or
-              remove them from the event. Non-admins cannot demote or remove the
-              captain.
+              Each action is applied immediately and refreshes the event detail
+              state after completion.
             </p>
 
             <div className="stack-sm">
@@ -302,8 +323,10 @@ function EventDetailPage() {
 
 function SubscriberPreview({
   subscriber,
+  isCurrentUser,
 }: {
   subscriber: EventSubscriberWithProfile
+  isCurrentUser: boolean
 }) {
   return (
     <article className="member-card">
@@ -313,9 +336,14 @@ function SubscriberPreview({
         </strong>
         <span className="muted-copy">{subscriber.profiles.email}</span>
       </div>
-      <span className="event-badge event-badge-strong">
-        {formatEventRole(subscriber.event_role)}
-      </span>
+      <div className="member-card-meta">
+        {isCurrentUser ? (
+          <span className="event-badge">You</span>
+        ) : null}
+        <span className="event-badge event-badge-strong">
+          {formatEventRole(subscriber.event_role)}
+        </span>
+      </div>
     </article>
   )
 }
@@ -436,9 +464,13 @@ function FundTrackerModule({
 
   return (
     <section className="glass-card panel stack-md">
-      <div className="stack-xs">
+      <div className="section-header-copy">
         <p className="eyebrow">Fund tracker</p>
         <h3 className="section-title">Target vs collected</h3>
+        <p className="module-note">
+          Track who still owes money and mark paid entries directly from the
+          member list.
+        </p>
       </div>
       <div className="info-grid">
         <InfoItem label="Target total" value={formatMoney(targetTotal)} />
@@ -446,6 +478,11 @@ function FundTrackerModule({
         <InfoItem label="Pending entries" value={String(detail.funds.filter((fund) => fund.status === 'pending').length)} />
         <InfoItem label="Event id" value={eventId.slice(0, 8)} />
       </div>
+      {!canMarkPaid ? (
+        <p className="module-note">
+          Only captains, co-captains, and app admins can mark funds as paid.
+        </p>
+      ) : null}
       <div className="stack-sm">
         {detail.subscribers.map((subscriber) => {
           const fund = fundMap.get(subscriber.user_id)
@@ -505,9 +542,12 @@ function RandomPickerModule({
 }) {
   return (
     <section className="glass-card panel stack-md">
-      <div className="stack-xs">
+      <div className="section-header-copy">
         <p className="eyebrow">Random picker</p>
         <h3 className="section-title">Spin to choose who pays</h3>
+        <p className="module-note">
+          Record every random pick so the group has a visible payment trail.
+        </p>
       </div>
 
       <form className="stack-md" onSubmit={onSpin}>
@@ -530,6 +570,11 @@ function RandomPickerModule({
         >
           {activeAction === 'spin' ? 'Picking...' : 'Spin / Pick'}
         </button>
+        {!canSpin ? (
+          <p className="module-note">
+            Only captains, co-captains, and app admins can spin the picker.
+          </p>
+        ) : null}
       </form>
 
       <div className="stack-sm">
