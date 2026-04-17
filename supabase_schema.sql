@@ -22,6 +22,7 @@ create table if not exists public.events (
   type text check (type in ('fund_tracker', 'random_picker')) not null,
   status text check (status in ('open', 'active', 'completed')) default 'open',
   visibility text check (visibility in ('public', 'private')) default 'private',
+  target_amount numeric,
   created_by uuid references public.profiles(id) not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -39,10 +40,43 @@ create table if not exists public.event_funds (
   event_id uuid references public.events(id) on delete cascade not null,
   user_id uuid references public.profiles(id) on delete cascade not null,
   amount numeric not null,
+  month integer not null,
+  year integer not null,
   status text check (status in ('pending', 'paid')) default 'pending',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique (event_id, user_id)
+  unique (event_id, user_id, year, month)
 );
+
+alter table public.events
+  add column if not exists target_amount numeric;
+
+alter table public.event_funds
+  add column if not exists month integer;
+
+alter table public.event_funds
+  add column if not exists year integer;
+
+update public.event_funds
+set
+  month = extract(month from timezone('utc'::text, created_at))::integer,
+  year = extract(year from timezone('utc'::text, created_at))::integer
+where month is null or year is null;
+
+alter table public.event_funds
+  alter column month set not null;
+
+alter table public.event_funds
+  alter column year set not null;
+
+alter table public.event_funds
+  drop constraint if exists event_funds_event_id_user_id_key;
+
+alter table public.event_funds
+  drop constraint if exists event_funds_event_id_user_id_year_month_key;
+
+alter table public.event_funds
+  add constraint event_funds_event_id_user_id_year_month_key
+  unique (event_id, user_id, year, month);
 
 create table if not exists public.event_activities (
   id uuid default uuid_generate_v4() primary key,
@@ -222,7 +256,8 @@ create or replace function public.create_event_with_captain(
   p_title text,
   p_description text,
   p_type text,
-  p_visibility text
+  p_visibility text,
+  p_target_amount numeric default null
 )
 returns public.events
 language plpgsql
@@ -258,11 +293,16 @@ begin
     raise exception 'Invalid visibility';
   end if;
 
+  if p_target_amount is not null and p_target_amount <= 0 then
+    raise exception 'Target amount must be greater than zero';
+  end if;
+
   insert into public.events (
     title,
     description,
     type,
     visibility,
+    target_amount,
     created_by
   )
   values (
@@ -270,6 +310,7 @@ begin
     nullif(trim(p_description), ''),
     p_type,
     p_visibility,
+    p_target_amount,
     auth.uid()
   )
   returning * into created_event;
@@ -278,12 +319,6 @@ begin
   values (created_event.id, auth.uid(), 'captain')
   on conflict (event_id, user_id) do update
     set event_role = 'captain';
-
-  if created_event.type = 'fund_tracker' then
-    insert into public.event_funds (event_id, user_id, amount, status)
-    values (created_event.id, auth.uid(), 0, 'pending')
-    on conflict (event_id, user_id) do nothing;
-  end if;
 
   return created_event;
 end;
@@ -331,12 +366,6 @@ begin
   on conflict (event_id, user_id) do update
     set joined_at = event_subscribers.joined_at
   returning * into joined_subscription;
-
-  if target_event.type = 'fund_tracker' then
-    insert into public.event_funds (event_id, user_id, amount, status)
-    values (p_event_id, auth.uid(), 0, 'pending')
-    on conflict (event_id, user_id) do nothing;
-  end if;
 
   return joined_subscription;
 end;
@@ -452,16 +481,16 @@ begin
   where event_id = p_event_id and user_id = p_user_id
   returning * into removed_subscription;
 
-  delete from public.event_funds
-  where event_id = p_event_id and user_id = p_user_id;
-
   return removed_subscription;
 end;
 $$;
 
-create or replace function public.mark_event_fund_paid(
+create or replace function public.upsert_event_fund_payment(
   p_event_id uuid,
-  p_user_id uuid
+  p_user_id uuid,
+  p_amount numeric,
+  p_month integer,
+  p_year integer
 )
 returns public.event_funds
 language plpgsql
@@ -469,23 +498,68 @@ security definer
 set search_path = public
 as $$
 declare
-  updated_fund public.event_funds;
+  target_event public.events;
+  target_subscription public.event_subscribers;
+  upserted_fund public.event_funds;
 begin
   if not public.is_admin()
      and not public.has_event_role(p_event_id, array['captain', 'co-captain']) then
-    raise exception 'Only captains, co-captains, or app admins can mark funds paid';
+    raise exception 'Only captains, co-captains, or app admins can record payments';
   end if;
 
-  update public.event_funds
-  set status = 'paid'
-  where event_id = p_event_id and user_id = p_user_id
-  returning * into updated_fund;
-
-  if updated_fund is null then
-    raise exception 'Fund entry not found';
+  if p_amount < 3000 then
+    raise exception 'Amount must be at least 3000';
   end if;
 
-  return updated_fund;
+  if p_month < 1 or p_month > 12 then
+    raise exception 'Month must be between 1 and 12';
+  end if;
+
+  if p_year < 2000 or p_year > 9999 then
+    raise exception 'Year must be valid';
+  end if;
+
+  select *
+  into target_event
+  from public.events
+  where id = p_event_id;
+
+  if target_event is null or target_event.type <> 'fund_tracker' then
+    raise exception 'Event is not a fund tracker';
+  end if;
+
+  select *
+  into target_subscription
+  from public.event_subscribers
+  where event_id = p_event_id and user_id = p_user_id;
+
+  if target_subscription is null then
+    raise exception 'Subscriber not found';
+  end if;
+
+  insert into public.event_funds (
+    event_id,
+    user_id,
+    amount,
+    month,
+    year,
+    status
+  )
+  values (
+    p_event_id,
+    p_user_id,
+    p_amount,
+    p_month,
+    p_year,
+    'paid'
+  )
+  on conflict (event_id, user_id, year, month) do update
+    set
+      amount = excluded.amount,
+      status = 'paid'
+  returning * into upserted_fund;
+
+  return upserted_fund;
 end;
 $$;
 
@@ -678,10 +752,10 @@ create policy "Captains and Co-Captains can insert activities" on public.event_a
 grant execute on function public.update_own_profile(text, text) to authenticated;
 grant execute on function public.approve_user(uuid) to authenticated;
 grant execute on function public.promote_user_to_admin(uuid) to authenticated;
-grant execute on function public.create_event_with_captain(text, text, text, text) to authenticated;
+grant execute on function public.create_event_with_captain(text, text, text, text, numeric) to authenticated;
 grant execute on function public.join_public_event(uuid) to authenticated;
 grant execute on function public.promote_event_member_to_cocaptain(uuid, uuid) to authenticated;
 grant execute on function public.demote_event_member_to_member(uuid, uuid) to authenticated;
 grant execute on function public.remove_event_member(uuid, uuid) to authenticated;
-grant execute on function public.mark_event_fund_paid(uuid, uuid) to authenticated;
+grant execute on function public.upsert_event_fund_payment(uuid, uuid, numeric, integer, integer) to authenticated;
 grant execute on function public.spin_random_picker(uuid, numeric) to authenticated;

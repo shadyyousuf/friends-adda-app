@@ -9,6 +9,10 @@ import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+    exclude: ['tests/e2e/**'],
+  },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),

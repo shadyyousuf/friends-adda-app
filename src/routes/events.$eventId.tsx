@@ -1,19 +1,48 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Crown,
+  Target,
+  Users,
+} from 'lucide-react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type TouchEvent,
+} from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import {
+  buildFundStatusItems,
+  buildLeaderboard,
+  buildMemberTimeline,
+  calculateMonthlyProgress,
+  DEFAULT_MONTHLY_AMOUNT,
+  formatPeriodLabel,
+  getAvatarGradient,
+  getCurrentPeriod,
+  getMemberName,
+  getRecentPeriods,
+  parsePeriodKey,
+  periodKey,
+  sumAllPaid,
+} from '../utils/fund-tracker'
+import {
+  demoteEventMemberToMember,
   eventDetailQueryOptions,
   eventKeys,
-  markEventFundPaid,
-  demoteEventMemberToMember,
   promoteEventMemberToCoCaptain,
   removeEventMember,
   spinRandomPicker,
   type EventDetailData,
   type EventSubscriberWithProfile,
+  upsertEventFundPayment,
 } from '../utils/events'
 
 export const Route = createFileRoute('/events/$eventId')({
@@ -28,22 +57,81 @@ function EventDetailPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const [billAmount, setBillAmount] = useState('')
+  const [selectedPeriodKey, setSelectedPeriodKey] = useState(() =>
+    periodKey(getCurrentPeriod()),
+  )
+  const [paymentDrawerUserId, setPaymentDrawerUserId] = useState<string | null>(
+    null,
+  )
+  const [paymentAmount, setPaymentAmount] = useState(
+    String(DEFAULT_MONTHLY_AMOUNT),
+  )
+  const [historyUserId, setHistoryUserId] = useState<string | null>(null)
+  const touchStartXRef = useRef<number | null>(null)
+
   const detailQuery = useQuery({
     ...eventDetailQueryOptions(eventId),
     enabled: Boolean(user && profile?.is_approved),
   })
+
   const detail: EventDetailData = detailQuery.data ?? {
     event: null,
     subscribers: [],
     funds: [],
     activities: [],
   }
+
   const detailError =
     detailQuery.error instanceof Error
       ? detailQuery.error.message
       : detailQuery.error
         ? 'Failed to load event detail.'
         : null
+
+  const selectedPeriod = parsePeriodKey(selectedPeriodKey)
+  const fundPeriods = getRecentPeriods(12)
+  const selectedPeriodIndex = fundPeriods.findIndex(
+    (period) => periodKey(period) === selectedPeriodKey,
+  )
+  const currentSubscriber = detail.subscribers.find(
+    (subscriber) => subscriber.user_id === user?.id,
+  )
+  const canManageMembers =
+    profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
+  const canRunModules =
+    profile?.role === 'admin' ||
+    currentSubscriber?.event_role === 'captain' ||
+    currentSubscriber?.event_role === 'co-captain'
+  const fundStatusItems = buildFundStatusItems(
+    detail.subscribers,
+    detail.funds,
+    selectedPeriod,
+  )
+  const monthlyProgress = calculateMonthlyProgress(fundStatusItems)
+  const leaderboard = buildLeaderboard(detail.subscribers, detail.funds)
+  const totalPaid = sumAllPaid(detail.funds)
+  const animatedTotalPaid = useAnimatedNumber(totalPaid)
+  const selectedHistoryMember =
+    detail.subscribers.find((subscriber) => subscriber.user_id === historyUserId) ??
+    null
+  const historyTimeline =
+    detail.event && selectedHistoryMember
+      ? buildMemberTimeline(
+          selectedHistoryMember,
+          detail.funds,
+          detail.event.created_at,
+        )
+      : []
+  const paymentMember =
+    detail.subscribers.find(
+      (subscriber) => subscriber.user_id === paymentDrawerUserId,
+    ) ?? null
+
+  useEffect(() => {
+    if (selectedPeriodIndex === -1) {
+      setSelectedPeriodKey(periodKey(fundPeriods[0]))
+    }
+  }, [fundPeriods, selectedPeriodIndex])
 
   async function handleAction(
     action: 'promote' | 'demote' | 'remove',
@@ -76,8 +164,92 @@ function EventDetailPage() {
     }
   }
 
+  async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!paymentDrawerUserId) {
+      return
+    }
+
+    const amount = Number(paymentAmount)
+
+    if (!Number.isFinite(amount) || amount < DEFAULT_MONTHLY_AMOUNT) {
+      setErrorMessage(
+        `Amount must be at least ${formatMoney(DEFAULT_MONTHLY_AMOUNT)}.`,
+      )
+      return
+    }
+
+    await handleModuleAction(`payment:${paymentDrawerUserId}`, async () => {
+      await upsertEventFundPayment({
+        eventId,
+        userId: paymentDrawerUserId,
+        amount,
+        month: selectedPeriod.month,
+        year: selectedPeriod.year,
+      })
+      setPaymentDrawerUserId(null)
+      setPaymentAmount(String(DEFAULT_MONTHLY_AMOUNT))
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.detail(eventId),
+      })
+    })
+  }
+
+  function openPaymentDrawer(userId: string) {
+    setPaymentDrawerUserId(userId)
+    setPaymentAmount(String(DEFAULT_MONTHLY_AMOUNT))
+    setErrorMessage(null)
+  }
+
+  function goToOlderMonth() {
+    if (selectedPeriodIndex === -1 || selectedPeriodIndex >= fundPeriods.length - 1) {
+      return
+    }
+
+    setSelectedPeriodKey(periodKey(fundPeriods[selectedPeriodIndex + 1]))
+  }
+
+  function goToNewerMonth() {
+    if (selectedPeriodIndex <= 0) {
+      return
+    }
+
+    setSelectedPeriodKey(periodKey(fundPeriods[selectedPeriodIndex - 1]))
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    touchStartXRef.current = event.touches[0]?.clientX ?? null
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
+    if (touchStartXRef.current === null) {
+      return
+    }
+
+    const touchEndX = event.changedTouches[0]?.clientX ?? touchStartXRef.current
+    const deltaX = touchEndX - touchStartXRef.current
+    touchStartXRef.current = null
+
+    if (deltaX <= -50) {
+      goToNewerMonth()
+      return
+    }
+
+    if (deltaX >= 50) {
+      goToOlderMonth()
+    }
+  }
+
   if (isLoading) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading event" copy="Checking your session and event access." />
+    return (
+      <AnimatedContentLoader
+        isVisible
+        mode="panel"
+        title="Loading event"
+        copy="Checking your session and event access."
+      />
+    )
   }
 
   if (!user) {
@@ -85,9 +257,7 @@ function EventDetailPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>
         <h2 className="panel-title">Login required</h2>
-        <p className="muted-copy">
-          Sign in before opening event details.
-        </p>
+        <p className="muted-copy">Sign in before opening event details.</p>
         <div className="actions-row">
           <Link to="/login" className="primary-button">
             Log in
@@ -101,7 +271,14 @@ function EventDetailPage() {
   }
 
   if (detailQuery.isPending && !detail.event) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading event" copy="Fetching the event overview and member data." />
+    return (
+      <AnimatedContentLoader
+        isVisible
+        mode="panel"
+        title="Loading event"
+        copy="Fetching the event overview and member data."
+      />
+    )
   }
 
   if (!detail.event && !detailQuery.isPending) {
@@ -121,15 +298,6 @@ function EventDetailPage() {
   }
 
   const event = detail.event
-  const currentSubscriber = detail.subscribers.find(
-    (subscriber) => subscriber.user_id === user.id,
-  )
-  const canManageMembers =
-    profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
-  const canRunModules =
-    profile?.role === 'admin' ||
-    currentSubscriber?.event_role === 'captain' ||
-    currentSubscriber?.event_role === 'co-captain'
 
   return (
     <div className="stack-lg">
@@ -139,8 +307,8 @@ function EventDetailPage() {
             <p className="eyebrow">Event detail</p>
             <h2 className="panel-title">{event?.title ?? 'Loading...'}</h2>
             <p className="section-note">
-              Track the event hierarchy and the active module without leaving
-              the page.
+              Track the event hierarchy and the active module without leaving the
+              page.
             </p>
           </div>
           <Link to="/" className="secondary-button">
@@ -154,11 +322,19 @@ function EventDetailPage() {
           <InfoItem label="Type" value={formatEventType(event?.type)} />
           <InfoItem label="Privacy" value={formatVisibility(event?.visibility)} />
           <InfoItem label="Status" value={event?.status ?? 'unknown'} />
-          <InfoItem
-            label="Members"
-            value={String(detail.subscribers.length)}
-          />
+          <InfoItem label="Members" value={String(detail.subscribers.length)} />
         </div>
+        {event?.type === 'fund_tracker' ? (
+          <div className="meta-row">
+            <span className="event-badge">
+              Target:{' '}
+              {event.target_amount ? formatMoney(event.target_amount) : 'Optional'}
+            </span>
+            <span className="event-badge">
+              Default monthly: {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
+            </span>
+          </div>
+        ) : null}
         {detailError ? <p className="form-error">{detailError}</p> : null}
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       </section>
@@ -194,18 +370,220 @@ function EventDetailPage() {
       </section>
 
       {event?.type === 'fund_tracker' ? (
-        <FundTrackerModule
-          eventId={eventId}
-          detail={detail}
-          canMarkPaid={Boolean(canRunModules)}
-          activeAction={activeAction}
-          onMarkPaid={(userId) => void handleModuleAction(`fund:${userId}`, async () => {
-            await markEventFundPaid(eventId, userId)
-            await queryClient.invalidateQueries({
-              queryKey: eventKeys.detail(eventId),
-            })
-          })}
-        />
+        <section
+          className="fund-tracker-layout"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <section
+            className="glass-card panel stack-md fade-in-up"
+            style={{ animationDelay: '0.05s' }}
+          >
+            <div className="fund-total-card">
+              <div className="section-header-copy">
+                <p className="eyebrow">Money tracker</p>
+                <h3 className="section-title">All-time collected fund</h3>
+              </div>
+              <div className="fund-total-value">{formatMoney(animatedTotalPaid)}</div>
+              <div className="fund-total-meta">
+                <span className="event-badge">
+                  <Users size={14} />
+                  {detail.subscribers.length} members
+                </span>
+                <span className="event-badge">
+                  <Target size={14} />
+                  {event.target_amount
+                    ? formatMoney(event.target_amount)
+                    : 'No target set'}
+                </span>
+                <span className="event-badge">
+                  Monthly default {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="glass-card panel stack-md fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
+            <div className="split-header">
+              <div className="section-header-copy">
+                <p className="eyebrow">Monthly progress</p>
+                <h3 className="section-title">{formatPeriodLabel(selectedPeriod)}</h3>
+              </div>
+              <div className="period-controls">
+                <button
+                  type="button"
+                  className="topbar-action-button"
+                  onClick={goToOlderMonth}
+                  disabled={selectedPeriodIndex >= fundPeriods.length - 1}
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="topbar-action-button"
+                  onClick={goToNewerMonth}
+                  disabled={selectedPeriodIndex <= 0}
+                  aria-label="Next month"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+            <label className="stack-xs">
+              <span className="field-label">Selected month</span>
+              <select
+                className="field-input"
+                value={selectedPeriodKey}
+                onChange={(event) => setSelectedPeriodKey(event.target.value)}
+              >
+                {fundPeriods.map((period) => (
+                  <option key={periodKey(period)} value={periodKey(period)}>
+                    {formatPeriodLabel(period)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="progress-meta">
+              <span className="field-label">
+                {monthlyProgress.paidCount}/{monthlyProgress.totalMembers} paid
+              </span>
+              <span className="field-label">
+                {Math.round(monthlyProgress.percentage)}%
+              </span>
+            </div>
+            <div className="progress-track" aria-hidden="true">
+              <div
+                className={
+                  monthlyProgress.percentage === 100
+                    ? 'progress-fill is-complete'
+                    : 'progress-fill'
+                }
+                style={{ width: `${monthlyProgress.percentage}%` }}
+              />
+            </div>
+            <p className="module-note">
+              Swipe right to move to older months and left to move back toward the
+              current month.
+            </p>
+          </section>
+
+          <section
+            className="glass-card panel stack-md fade-in-up"
+            style={{ animationDelay: '0.15s' }}
+          >
+            <div className="split-header">
+              <div className="section-header-copy">
+                <p className="eyebrow">Payment status</p>
+                <h3 className="section-title">Pending first, paid after</h3>
+              </div>
+              <span className="status-chip">{fundStatusItems.length}</span>
+            </div>
+            {fundStatusItems.length === 0 ? (
+              <div className="empty-state">
+                <h4 className="empty-state-title">No eligible members yet</h4>
+                <p className="muted-copy">
+                  Members will appear here once they have joined by the selected
+                  month.
+                </p>
+              </div>
+            ) : (
+              <div className="stack-sm">
+                {fundStatusItems.map((item) => (
+                  <article key={item.member.user_id} className="fund-status-card">
+                    <div className="member-row">
+                      <MemberAvatar member={item.member} />
+                      <div className="stack-xs">
+                        <strong className="info-value">
+                          {getMemberName(item.member)}
+                        </strong>
+                        <div className="member-card-meta">
+                          <span className="event-badge">
+                            {formatEventRole(item.member.event_role)}
+                          </span>
+                          {item.member.profiles.role === 'admin' ? (
+                            <span className="event-badge">Admin</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fund-status-aside">
+                      {item.status === 'paid' ? (
+                        <div className="payment-state payment-state-paid">
+                          <CheckCircle2 size={16} />
+                          <span>{formatMoney(Number(item.payment?.amount ?? 0))}</span>
+                        </div>
+                      ) : (
+                        <div className="payment-state payment-state-pending">
+                          <Clock3 size={16} />
+                          <span>Pending</span>
+                        </div>
+                      )}
+                      {canRunModules && item.status === 'pending' ? (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={() => openPaymentDrawer(item.member.user_id)}
+                          disabled={activeAction === `payment:${item.member.user_id}`}
+                        >
+                          {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section
+            className="glass-card panel stack-md fade-in-up"
+            style={{ animationDelay: '0.2s' }}
+          >
+            <div className="split-header">
+              <div className="section-header-copy">
+                <p className="eyebrow">Members</p>
+                <h3 className="section-title">Contribution leaderboard</h3>
+              </div>
+              <span className="status-chip">{leaderboard.length}</span>
+            </div>
+            {leaderboard.length === 0 ? (
+              <p className="muted-copy">No members available for leaderboard data.</p>
+            ) : (
+              <div className="stack-sm">
+                {leaderboard.map((entry, index) => (
+                  <button
+                    key={entry.member.user_id}
+                    type="button"
+                    className="leaderboard-card"
+                    onClick={() => setHistoryUserId(entry.member.user_id)}
+                  >
+                    <div className="member-row">
+                      <MemberAvatar member={entry.member} highlight={index === 0} />
+                      <div className="stack-xs">
+                        <strong className="info-value">
+                          {getMemberName(entry.member)}
+                        </strong>
+                        <span className="muted-copy">
+                          {entry.monthsPaid} months paid
+                        </span>
+                      </div>
+                    </div>
+                    <div className="leaderboard-meta">
+                      <span className="leaderboard-rank">#{index + 1}</span>
+                      <strong className="info-value">
+                        {formatMoney(entry.totalPaid)}
+                      </strong>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        </section>
       ) : null}
 
       {event?.type === 'random_picker' ? (
@@ -215,7 +593,7 @@ function EventDetailPage() {
           setBillAmount={setBillAmount}
           canSpin={Boolean(canRunModules)}
           activeAction={activeAction}
-          onSpin={(event) => void handleSpin(event)}
+          onSpin={(submitEvent) => void handleSpin(submitEvent)}
         />
       ) : null}
 
@@ -245,8 +623,8 @@ function EventDetailPage() {
             </div>
 
             <p className="drawer-footer-note">
-              Non-admins cannot demote or remove the captain, and captains
-              cannot remove themselves.
+              Non-admins cannot demote or remove the captain, and captains cannot
+              remove themselves.
             </p>
 
             <p className="muted-copy">
@@ -269,6 +647,124 @@ function EventDetailPage() {
                 />
               ))}
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {paymentDrawerUserId && paymentMember ? (
+        <section
+          className="drawer-overlay"
+          onClick={() => setPaymentDrawerUserId(null)}
+        >
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="section-header-copy">
+              <p className="eyebrow">Record payment</p>
+              <h3 className="section-title">{formatPeriodLabel(selectedPeriod)}</h3>
+            </div>
+            <div className="member-row">
+              <MemberAvatar member={paymentMember} />
+              <div className="stack-xs">
+                <strong className="info-value">{getMemberName(paymentMember)}</strong>
+                <span className="muted-copy">{paymentMember.profiles.email}</span>
+              </div>
+            </div>
+            <form className="stack-md" onSubmit={handlePaymentSubmit}>
+              <label className="stack-xs">
+                <span className="field-label">Amount</span>
+                <input
+                  type="number"
+                  min={DEFAULT_MONTHLY_AMOUNT}
+                  step="0.01"
+                  className="field-input"
+                  value={paymentAmount}
+                  onChange={(event) => setPaymentAmount(event.target.value)}
+                />
+              </label>
+              <p className="module-note">
+                Minimum amount is {formatMoney(DEFAULT_MONTHLY_AMOUNT)}.
+              </p>
+              <div className="actions-row">
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={activeAction === `payment:${paymentDrawerUserId}`}
+                >
+                  {activeAction === `payment:${paymentDrawerUserId}`
+                    ? 'Saving...'
+                    : 'Mark as paid'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setPaymentDrawerUserId(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {historyUserId && selectedHistoryMember ? (
+        <section className="drawer-overlay" onClick={() => setHistoryUserId(null)}>
+          <div
+            className="glass-card create-drawer member-history-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="split-header">
+              <div className="member-row">
+                <MemberAvatar member={selectedHistoryMember} />
+                <div className="stack-xs">
+                  <strong className="info-value">
+                    {getMemberName(selectedHistoryMember)}
+                  </strong>
+                  <div className="member-card-meta">
+                    <span className="event-badge">
+                      {formatEventRole(selectedHistoryMember.event_role)}
+                    </span>
+                    {selectedHistoryMember.profiles.role === 'admin' ? (
+                      <span className="event-badge">Admin</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setHistoryUserId(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="history-summary-grid">
+              <div className="info-card">
+                <span className="info-label">Total paid</span>
+                <strong className="info-value">
+                  {formatMoney(
+                    leaderboard.find(
+                      (entry) => entry.member.user_id === selectedHistoryMember.user_id,
+                    )?.totalPaid ?? 0,
+                  )}
+                </strong>
+              </div>
+              <div className="info-card">
+                <span className="info-label">Months paid</span>
+                <strong className="info-value">
+                  {
+                    leaderboard.find(
+                      (entry) => entry.member.user_id === selectedHistoryMember.user_id,
+                    )?.monthsPaid ?? 0
+                  }
+                </strong>
+              </div>
+            </div>
+            <ContributionTimeline items={historyTimeline} />
           </div>
         </section>
       ) : null}
@@ -319,21 +815,55 @@ function SubscriberPreview({
 }) {
   return (
     <article className="member-card">
-      <div className="stack-xs">
-        <strong className="info-value">
-          {subscriber.profiles.full_name || 'Unnamed member'}
-        </strong>
-        <span className="muted-copy">{subscriber.profiles.email}</span>
+      <div className="member-row">
+        <MemberAvatar member={subscriber} />
+        <div className="stack-xs">
+          <strong className="info-value">{getMemberName(subscriber)}</strong>
+          <span className="muted-copy">{subscriber.profiles.email}</span>
+        </div>
       </div>
       <div className="member-card-meta">
-        {isCurrentUser ? (
-          <span className="event-badge">You</span>
+        {isCurrentUser ? <span className="event-badge">You</span> : null}
+        {subscriber.profiles.role === 'admin' ? (
+          <span className="event-badge">Admin</span>
         ) : null}
         <span className="event-badge event-badge-strong">
           {formatEventRole(subscriber.event_role)}
         </span>
       </div>
     </article>
+  )
+}
+
+function MemberAvatar({
+  member,
+  highlight = false,
+}: {
+  member: {
+    profiles: {
+      full_name: string | null
+      email: string
+    }
+  }
+  highlight?: boolean
+}) {
+  const name = getMemberName(member)
+
+  return (
+    <div className="avatar-shell">
+      <div
+        className="member-avatar"
+        style={{ backgroundImage: getAvatarGradient(name) }}
+        aria-hidden="true"
+      >
+        {name.charAt(0).toUpperCase()}
+      </div>
+      {highlight ? (
+        <span className="avatar-crown" aria-hidden="true">
+          <Crown size={12} />
+        </span>
+      ) : null}
+    </div>
   )
 }
 
@@ -369,17 +899,18 @@ function MemberManagementCard({
 
   return (
     <article className="admin-user-card">
-      <div className="stack-xs">
-        <strong className="info-value">
-          {subscriber.profiles.full_name || 'Unnamed member'}
-        </strong>
-        <span className="muted-copy">{subscriber.profiles.email}</span>
-        <span className="field-label">
-          Blood group: {subscriber.profiles.blood_group ?? 'Not set'}
-        </span>
-        <span className="field-label">
-          Event role: {formatEventRole(subscriber.event_role)}
-        </span>
+      <div className="member-row">
+        <MemberAvatar member={subscriber} />
+        <div className="stack-xs">
+          <strong className="info-value">{getMemberName(subscriber)}</strong>
+          <span className="muted-copy">{subscriber.profiles.email}</span>
+          <span className="field-label">
+            Blood group: {subscriber.profiles.blood_group ?? 'Not set'}
+          </span>
+          <span className="field-label">
+            Event role: {formatEventRole(subscriber.event_role)}
+          </span>
+        </div>
       </div>
       <div className="actions-row">
         {canPromote ? (
@@ -432,85 +963,63 @@ function InfoItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function FundTrackerModule({
-  eventId,
-  detail,
-  canMarkPaid,
-  activeAction,
-  onMarkPaid,
+function ContributionTimeline({
+  items,
 }: {
-  eventId: string
-  detail: EventDetailData
-  canMarkPaid: boolean
-  activeAction: string | null
-  onMarkPaid: (userId: string) => void
+  items: ReturnType<typeof buildMemberTimeline>
 }) {
-  const fundMap = new Map(detail.funds.map((fund) => [fund.user_id, fund]))
-  const targetTotal = detail.funds.reduce((sum, fund) => sum + Number(fund.amount), 0)
-  const collectedTotal = detail.funds
-    .filter((fund) => fund.status === 'paid')
-    .reduce((sum, fund) => sum + Number(fund.amount), 0)
+  if (items.length === 0) {
+    return (
+      <div className="empty-state">
+        <h4 className="empty-state-title">No contribution history yet</h4>
+        <p className="muted-copy">
+          This member has not accumulated any visible monthly history.
+        </p>
+      </div>
+    )
+  }
 
   return (
-    <section className="glass-card panel stack-md">
-      <div className="section-header-copy">
-        <p className="eyebrow">Fund tracker</p>
-        <h3 className="section-title">Target vs collected</h3>
-        <p className="module-note">
-          Track who still owes money and mark paid entries directly from the
-          member list.
-        </p>
-      </div>
-      <div className="info-grid">
-        <InfoItem label="Target total" value={formatMoney(targetTotal)} />
-        <InfoItem label="Collected" value={formatMoney(collectedTotal)} />
-        <InfoItem label="Pending entries" value={String(detail.funds.filter((fund) => fund.status === 'pending').length)} />
-        <InfoItem label="Event id" value={eventId.slice(0, 8)} />
-      </div>
-      {!canMarkPaid ? (
-        <p className="module-note">
-          Only captains, co-captains, and app admins can mark funds as paid.
-        </p>
-      ) : null}
-      <div className="stack-sm">
-        {detail.subscribers.map((subscriber) => {
-          const fund = fundMap.get(subscriber.user_id)
-
-          return (
-            <article key={subscriber.user_id} className="admin-user-card">
-              <div className="stack-xs">
-                <strong className="info-value">
-                  {subscriber.profiles.full_name || 'Unnamed member'}
-                </strong>
-                <span className="muted-copy">{subscriber.profiles.email}</span>
-                <span className="field-label">
-                  Amount: {formatMoney(Number(fund?.amount ?? 0))}
-                </span>
-                <span className="field-label">
-                  Status: {fund?.status ?? 'No fund entry'}
-                </span>
-              </div>
-              {canMarkPaid && fund?.status === 'pending' ? (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => onMarkPaid(subscriber.user_id)}
-                  disabled={activeAction === `fund:${subscriber.user_id}`}
-                >
-                  {activeAction === `fund:${subscriber.user_id}`
-                    ? 'Updating...'
-                    : 'Mark as paid'}
-                </button>
-              ) : (
-                <span className="event-badge event-badge-strong">
-                  {fund?.status === 'paid' ? 'Paid' : 'Pending'}
-                </span>
-              )}
-            </article>
-          )
-        })}
-      </div>
-    </section>
+    <div className="history-timeline contribution-timeline">
+      {items.map((item) => (
+        <article
+          key={periodKey(item.period)}
+          className={
+            item.status === 'paid'
+              ? 'timeline-card timeline-card-paid'
+              : 'timeline-card'
+          }
+        >
+          <div className="history-dot" />
+          <div className="history-content">
+            <div className="split-header">
+              <strong className="info-value">{formatPeriodLabel(item.period)}</strong>
+              <span
+                className={
+                  item.status === 'paid'
+                    ? 'event-badge event-badge-strong'
+                    : 'event-badge'
+                }
+              >
+                {item.status === 'paid' ? 'Paid' : 'Pending'}
+              </span>
+            </div>
+            <div className="meta-row">
+              <span className="field-label">
+                Amount:{' '}
+                {item.payment ? formatMoney(Number(item.payment.amount)) : formatMoney(0)}
+              </span>
+              <span className="field-label">
+                Date:{' '}
+                {item.payment
+                  ? new Date(item.payment.created_at).toLocaleDateString()
+                  : 'Not recorded'}
+              </span>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
   )
 }
 
@@ -644,9 +1153,36 @@ function formatEventRole(role: EventSubscriberWithProfile['event_role']) {
 }
 
 function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-BD', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'BDT',
     maximumFractionDigits: 2,
   }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function useAnimatedNumber(target: number) {
+  const [value, setValue] = useState(0)
+
+  useEffect(() => {
+    let animationFrame = 0
+    const duration = 700
+    const startedAt = performance.now()
+
+    function update(now: number) {
+      const progress = Math.min((now - startedAt) / duration, 1)
+      setValue(target * progress)
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(update)
+      }
+    }
+
+    animationFrame = requestAnimationFrame(update)
+
+    return () => {
+      cancelAnimationFrame(animationFrame)
+    }
+  }, [target])
+
+  return value
 }

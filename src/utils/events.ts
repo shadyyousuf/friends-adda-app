@@ -18,6 +18,7 @@ type CreateEventInput = {
   description: string
   type: EventType
   visibility: EventVisibility
+  targetAmount?: number | null
 }
 
 export type DashboardData = {
@@ -144,12 +145,14 @@ export async function createEventWithCaptain({
   description,
   type,
   visibility,
+  targetAmount,
 }: CreateEventInput) {
   const { data, error } = await supabase.rpc('create_event_with_captain', {
     p_title: title,
     p_description: description,
     p_type: type,
     p_visibility: visibility,
+    p_target_amount: targetAmount ?? null,
   })
 
   if (error) {
@@ -299,10 +302,25 @@ export async function removeEventMember(eventId: string, userId: string) {
   return data
 }
 
-export async function markEventFundPaid(eventId: string, userId: string) {
-  const { data, error } = await supabase.rpc('mark_event_fund_paid', {
+export async function upsertEventFundPayment({
+  eventId,
+  userId,
+  amount,
+  month,
+  year,
+}: {
+  eventId: string
+  userId: string
+  amount: number
+  month: number
+  year: number
+}) {
+  const { data, error } = await supabase.rpc('upsert_event_fund_payment', {
     p_event_id: eventId,
     p_user_id: userId,
+    p_amount: amount,
+    p_month: month,
+    p_year: year,
   })
 
   if (error) {

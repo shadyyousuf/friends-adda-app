@@ -28,6 +28,7 @@ function HomePage() {
   const [description, setDescription] = useState('')
   const [eventType, setEventType] = useState<EventType>('fund_tracker')
   const [visibility, setVisibility] = useState<EventVisibility>('public')
+  const [targetAmount, setTargetAmount] = useState('')
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [joinError, setJoinError] = useState<string | null>(null)
@@ -69,16 +70,31 @@ function HomePage() {
     setIsCreatingEvent(true)
 
     try {
+      const normalizedTargetAmount =
+        eventType === 'fund_tracker' && targetAmount.trim()
+          ? Number(targetAmount)
+          : null
+
+      if (
+        eventType === 'fund_tracker' &&
+        normalizedTargetAmount !== null &&
+        (!Number.isFinite(normalizedTargetAmount) || normalizedTargetAmount <= 0)
+      ) {
+        throw new Error('Target amount must be greater than zero.')
+      }
+
       await createEventWithCaptain({
         title,
         description,
         type: eventType,
         visibility,
+        targetAmount: normalizedTargetAmount,
       })
       setTitle('')
       setDescription('')
       setEventType('fund_tracker')
       setVisibility('public')
+      setTargetAmount('')
       setIsCreateOpen(false)
       await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
     } catch (error) {
@@ -296,6 +312,21 @@ function HomePage() {
                   <option value="private">Private</option>
                 </select>
               </label>
+
+              {eventType === 'fund_tracker' ? (
+                <label className="stack-xs">
+                  <span className="field-label">Target amount (optional)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    className="field-input"
+                    value={targetAmount}
+                    onChange={(event) => setTargetAmount(event.target.value)}
+                    placeholder="15000"
+                  />
+                </label>
+              ) : null}
 
               {createError ? <p className="form-error">{createError}</p> : null}
 

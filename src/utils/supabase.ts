@@ -9,9 +9,9 @@ export type Database = {
         Update: { id?: string, full_name?: string | null, email?: string, role?: 'admin' | 'member', is_approved?: boolean | null, blood_group?: string | null, created_at?: string }
       }
       events: {
-        Row: { id: string, title: string, description: string | null, type: 'fund_tracker' | 'random_picker', status: 'open' | 'active' | 'completed', visibility: 'public' | 'private', created_by: string, created_at: string }
-        Insert: { id?: string, title: string, description?: string | null, type: 'fund_tracker' | 'random_picker', status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', created_by: string, created_at?: string }
-        Update: { id?: string, title?: string, description?: string | null, type?: 'fund_tracker' | 'random_picker', status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', created_by?: string, created_at?: string }
+        Row: { id: string, title: string, description: string | null, type: 'fund_tracker' | 'random_picker', status: 'open' | 'active' | 'completed', visibility: 'public' | 'private', target_amount: number | null, created_by: string, created_at: string }
+        Insert: { id?: string, title: string, description?: string | null, type: 'fund_tracker' | 'random_picker', status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, created_by: string, created_at?: string }
+        Update: { id?: string, title?: string, description?: string | null, type?: 'fund_tracker' | 'random_picker', status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, created_by?: string, created_at?: string }
       }
       event_subscribers: {
         Row: { event_id: string, user_id: string, event_role: 'captain' | 'co-captain' | 'member', joined_at: string }
@@ -19,9 +19,9 @@ export type Database = {
         Update: { event_id?: string, user_id?: string, event_role?: 'captain' | 'co-captain' | 'member', joined_at?: string }
       }
       event_funds: {
-        Row: { id: string, event_id: string, user_id: string, amount: number, status: 'pending' | 'paid', created_at: string }
-        Insert: { id?: string, event_id: string, user_id: string, amount: number, status?: 'pending' | 'paid', created_at?: string }
-        Update: { id?: string, event_id?: string, user_id?: string, amount?: number, status?: 'pending' | 'paid', created_at?: string }
+        Row: { id: string, event_id: string, user_id: string, amount: number, month: number, year: number, status: 'pending' | 'paid', created_at: string }
+        Insert: { id?: string, event_id: string, user_id: string, amount: number, month: number, year: number, status?: 'pending' | 'paid', created_at?: string }
+        Update: { id?: string, event_id?: string, user_id?: string, amount?: number, month?: number, year?: number, status?: 'pending' | 'paid', created_at?: string }
       }
       event_activities: {
         Row: { id: string, event_id: string, activity_type: string, payload: any | null, created_at: string }
@@ -58,6 +58,7 @@ export type Database = {
           p_description: string | null
           p_type: 'fund_tracker' | 'random_picker'
           p_visibility: 'public' | 'private'
+          p_target_amount?: number | null
         }
         Returns: Database['public']['Tables']['events']['Row']
       }
@@ -88,10 +89,13 @@ export type Database = {
         }
         Returns: Database['public']['Tables']['event_subscribers']['Row']
       }
-      mark_event_fund_paid: {
+      upsert_event_fund_payment: {
         Args: {
           p_event_id: string
           p_user_id: string
+          p_amount: number
+          p_month: number
+          p_year: number
         }
         Returns: Database['public']['Tables']['event_funds']['Row']
       }

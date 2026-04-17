@@ -424,6 +424,30 @@ textarea {
   }
 }
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .hero-title {
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1;
@@ -791,10 +815,11 @@ textarea:focus-visible {
 .create-drawer {
   width: min(100%, 30rem);
   margin: 0 auto;
-  border-radius: 1.6rem 1.6rem 1.2rem 1.2rem;
+  border-radius: 1.5rem 1.5rem 0 0;
   padding: 1.1rem;
   max-height: min(88vh, 48rem);
   overflow-y: auto;
+  animation: drawer-slide-up 220ms ease;
 }
 
 .drawer-handle {
@@ -957,6 +982,210 @@ textarea:focus-visible {
   font-size: 1rem;
 }
 
+.fade-in-up {
+  opacity: 0;
+  animation: fade-in-up 320ms ease forwards;
+}
+
+.fund-tracker-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.fund-total-card {
+  display: grid;
+  gap: 0.85rem;
+  border-radius: 1.35rem;
+  padding: 1.15rem;
+  background:
+    radial-gradient(circle at top right, rgba(127, 217, 255, 0.22), transparent 30%),
+    linear-gradient(135deg, rgba(87, 209, 190, 0.26), rgba(11, 21, 36, 0.16) 48%, rgba(127, 217, 255, 0.24));
+  border: 1px solid rgba(157, 230, 216, 0.14);
+}
+
+.fund-total-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 7vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.fund-total-meta,
+.progress-meta,
+.period-controls,
+.member-row,
+.fund-status-aside,
+.leaderboard-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.fund-total-meta,
+.progress-meta {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.period-controls {
+  justify-content: flex-end;
+}
+
+.progress-track {
+  position: relative;
+  width: 100%;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7fd9ff 0%, #57d1be 100%);
+  transition: width 220ms ease;
+}
+
+.progress-fill.is-complete {
+  background: linear-gradient(90deg, #9de6d8 0%, #57d1be 100%);
+}
+
+.fund-status-card,
+.leaderboard-card,
+.timeline-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fund-status-card,
+.leaderboard-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.fund-status-aside,
+.leaderboard-meta {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.payment-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.payment-state-paid {
+  color: #dffaf4;
+}
+
+.payment-state-pending {
+  color: #ffe7a8;
+}
+
+.leaderboard-card {
+  width: 100%;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.leaderboard-card:hover,
+.leaderboard-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(127, 217, 255, 0.22);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.leaderboard-rank {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: rgba(223, 236, 248, 0.72);
+}
+
+.avatar-shell {
+  position: relative;
+  flex: none;
+}
+
+.member-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 999px;
+  color: #041119;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.avatar-crown {
+  position: absolute;
+  right: -0.15rem;
+  top: -0.2rem;
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  color: #08111e;
+  background: #f6d68f;
+}
+
+.history-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.member-history-drawer {
+  display: grid;
+  gap: 1rem;
+}
+
+.contribution-timeline {
+  gap: 0.85rem;
+}
+
+.timeline-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 0.1rem 0;
+  border-left: 4px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border-radius: 0;
+}
+
+.timeline-card .history-content {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.timeline-card-paid {
+  border-left-color: rgba(87, 209, 190, 0.6);
+}
+
+.timeline-card-paid .history-dot {
+  background: linear-gradient(135deg, #9de6d8 0%, #57d1be 100%);
+}
+
+.timeline-card:not(.timeline-card-paid) .history-dot {
+  background: rgba(223, 236, 248, 0.32);
+  box-shadow: none;
+}
+
 @media (min-width: 640px) {
   .mobile-frame {
     padding-top: 1.5rem;
@@ -974,7 +1203,9 @@ textarea:focus-visible {
 
 @media (max-width: 420px) {
   .member-card,
-  .member-directory-card {
+  .member-directory-card,
+  .fund-status-card,
+  .leaderboard-card {
     align-items: start;
     flex-direction: column;
   }
@@ -985,6 +1216,18 @@ textarea:focus-visible {
     justify-items: start;
     justify-content: flex-start;
     text-align: left;
+  }
+
+  .fund-status-aside,
+  .leaderboard-meta,
+  .period-controls,
+  .progress-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .history-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 
