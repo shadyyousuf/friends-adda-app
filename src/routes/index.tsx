@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import {
   createEventWithCaptain,
@@ -104,15 +105,7 @@ function HomePage() {
   }
 
   if (isLoading) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Checking session</p>
-        <h2 className="panel-title">Loading your account</h2>
-        <p className="muted-copy">
-          Establishing your auth session and profile state.
-        </p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading your account" copy="Establishing your auth session and profile state." />
   }
 
   if (!user) {
@@ -156,15 +149,7 @@ function HomePage() {
   }
 
   if (dashboardQuery.isPending && dashboardData.myEvents.length === 0) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Dashboard</p>
-        <h2 className="panel-title">Loading your events</h2>
-        <p className="muted-copy">
-          Fetching your subscribed events and the latest public events.
-        </p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading your events" copy="Fetching your subscribed events and the latest public events." />
   }
 
   return (

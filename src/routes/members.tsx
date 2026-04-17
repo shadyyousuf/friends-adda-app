@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import { approvedProfilesQueryOptions } from '../utils/profile'
 import type { Database } from '../utils/supabase'
@@ -46,13 +47,7 @@ function MembersPage() {
   })
 
   if (isLoading) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Members</p>
-        <h2 className="panel-title">Loading members</h2>
-        <p className="muted-copy">Checking your session first.</p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading members" copy="Checking your session first." />
   }
 
   if (!user) {
@@ -104,7 +99,7 @@ function MembersPage() {
         </div>
 
         {membersQuery.isPending && members.length === 0 ? (
-          <p className="muted-copy">Loading approved members.</p>
+          <AnimatedContentLoader isVisible mode="panel" title="Loading approved members" copy="Pulling the latest member directory from the server." />
         ) : filteredMembers.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">No match found</h4>

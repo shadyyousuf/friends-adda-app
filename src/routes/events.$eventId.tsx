@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import {
   eventDetailQueryOptions,
@@ -76,13 +77,7 @@ function EventDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Event</p>
-        <h2 className="panel-title">Loading event</h2>
-        <p className="muted-copy">Checking your session and event access.</p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading event" copy="Checking your session and event access." />
   }
 
   if (!user) {
@@ -106,13 +101,7 @@ function EventDetailPage() {
   }
 
   if (detailQuery.isPending && !detail.event) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Event</p>
-        <h2 className="panel-title">Loading event</h2>
-        <p className="muted-copy">Fetching the event overview and member data.</p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading event" copy="Fetching the event overview and member data." />
   }
 
   if (!detail.event && !detailQuery.isPending) {

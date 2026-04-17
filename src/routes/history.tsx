@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import {
   completedEventsQueryOptions,
@@ -25,13 +26,7 @@ function HistoryPage() {
         : null
 
   if (isLoading) {
-    return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">History</p>
-        <h2 className="panel-title">Loading history</h2>
-        <p className="muted-copy">Checking your session first.</p>
-      </section>
-    )
+    return <AnimatedContentLoader isVisible mode="panel" title="Loading history" copy="Checking your session first." />
   }
 
   if (!user) {
@@ -73,7 +68,7 @@ function HistoryPage() {
         </div>
 
         {historyQuery.isPending && events.length === 0 ? (
-          <p className="muted-copy">Loading completed events.</p>
+          <AnimatedContentLoader isVisible mode="panel" title="Loading completed events" copy="Building the event timeline from server data." />
         ) : events.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">No completed events yet</h4>
