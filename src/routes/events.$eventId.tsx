@@ -29,6 +29,7 @@ import {
   getCurrentPeriod,
   getMemberName,
   getRecentPeriods,
+  MONTH_NAMES,
   parsePeriodKey,
   periodKey,
   sumAllPaid,
@@ -89,6 +90,8 @@ function EventDetailPage() {
         : null
 
   const selectedPeriod = parsePeriodKey(selectedPeriodKey)
+  const selectedPeriodLabel = formatPeriodLabel(selectedPeriod)
+  const selectedMonthLabel = MONTH_NAMES[selectedPeriod.month - 1]
   const fundPeriods = getRecentPeriods(12)
   const selectedPeriodIndex = fundPeriods.findIndex(
     (period) => periodKey(period) === selectedPeriodKey,
@@ -410,7 +413,7 @@ function EventDetailPage() {
             <div className="split-header">
               <div className="section-header-copy">
                 <p className="eyebrow">Monthly progress</p>
-                <h3 className="section-title">{formatPeriodLabel(selectedPeriod)}</h3>
+                <h3 className="section-title">{selectedPeriodLabel}</h3>
               </div>
               <div className="period-controls">
                 <button
@@ -479,6 +482,10 @@ function EventDetailPage() {
               <div className="section-header-copy">
                 <p className="eyebrow">Payment status</p>
                 <h3 className="section-title">Pending first, paid after</h3>
+                <p className="section-note">
+                  Members below are shown for {selectedPeriodLabel}. Confirming a
+                  payment saves it against this exact month and year.
+                </p>
               </div>
               <span className="status-chip">{fundStatusItems.length}</span>
             </div>
@@ -507,7 +514,13 @@ function EventDetailPage() {
                           {item.member.profiles.role === 'admin' ? (
                             <span className="event-badge">Admin</span>
                           ) : null}
+                          <span className="event-badge event-badge-period">
+                            {selectedPeriodLabel}
+                          </span>
                         </div>
+                        <span className="field-label">
+                          Status shown for {selectedPeriodLabel}
+                        </span>
                       </div>
                     </div>
                     <div className="fund-status-aside">
@@ -663,13 +676,17 @@ function EventDetailPage() {
             <div className="drawer-handle" aria-hidden="true" />
             <div className="section-header-copy">
               <p className="eyebrow">Record payment</p>
-              <h3 className="section-title">{formatPeriodLabel(selectedPeriod)}</h3>
+              <h3 className="section-title">{selectedPeriodLabel}</h3>
             </div>
             <div className="member-row">
               <MemberAvatar member={paymentMember} />
               <div className="stack-xs">
                 <strong className="info-value">{getMemberName(paymentMember)}</strong>
                 <span className="muted-copy">{paymentMember.profiles.email}</span>
+                <div className="member-card-meta">
+                  <span className="event-badge">Month: {selectedMonthLabel}</span>
+                  <span className="event-badge">Year: {selectedPeriod.year}</span>
+                </div>
               </div>
             </div>
             <form className="stack-md" onSubmit={handlePaymentSubmit}>
@@ -685,7 +702,8 @@ function EventDetailPage() {
                 />
               </label>
               <p className="module-note">
-                Minimum amount is {formatMoney(DEFAULT_MONTHLY_AMOUNT)}.
+                Minimum amount is {formatMoney(DEFAULT_MONTHLY_AMOUNT)}. Confirming
+                this will save a paid transaction for {selectedPeriodLabel}.
               </p>
               <div className="actions-row">
                 <button
@@ -695,7 +713,7 @@ function EventDetailPage() {
                 >
                   {activeAction === `payment:${paymentDrawerUserId}`
                     ? 'Saving...'
-                    : 'Mark as paid'}
+                    : `Confirm ${selectedPeriodLabel}`}
                 </button>
                 <button
                   type="button"

@@ -793,6 +793,12 @@ textarea:focus-visible {
   color: #e5fff8;
 }
 
+.event-badge-period {
+  background: rgba(255, 231, 168, 0.1);
+  border-color: rgba(255, 231, 168, 0.16);
+  color: #fff0bf;
+}
+
 .meta-row,
 .card-tag-row {
   display: flex;
