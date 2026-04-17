@@ -61,6 +61,15 @@ const contributions: FundTrackerContribution[] = [
     status: 'paid',
     created_at: '2026-03-12T00:00:00.000Z',
   },
+  {
+    id: 'apr-captain-pending',
+    user_id: 'captain',
+    amount: DEFAULT_MONTHLY_AMOUNT,
+    month: 4,
+    year: 2026,
+    status: 'pending',
+    created_at: '2026-04-10T00:00:00.000Z',
+  },
 ]
 
 describe('fund-tracker helpers', () => {
@@ -70,15 +79,22 @@ describe('fund-tracker helpers', () => {
       month: 1,
     })
 
-    expect(items).toHaveLength(1)
-    expect(items[0]?.member.user_id).toBe('captain')
-    expect(items[0]?.status).toBe('paid')
+    expect(items).toHaveLength(2)
+    expect(items.map((item) => item.member.user_id)).toEqual([
+      'member',
+      'captain',
+    ])
+    expect(items.map((item) => item.status)).toEqual(['pending', 'paid'])
 
     const marchItems = buildFundStatusItems(members, contributions, {
       year: 2026,
       month: 4,
     })
 
+    expect(marchItems.map((item) => item.member.user_id)).toEqual([
+      'captain',
+      'member',
+    ])
     expect(marchItems.map((item) => item.status)).toEqual(['pending', 'pending'])
   })
 
@@ -104,20 +120,16 @@ describe('fund-tracker helpers', () => {
     expect(leaderboard[1]?.member.user_id).toBe('member')
   })
 
-  it('builds a timeline with pending months filled in', () => {
+  it('builds a timeline sorted by month and year in ascending order without pending entries', () => {
     const timeline = buildMemberTimeline(
-      members[1],
+      members[0],
       contributions,
-      '2026-01-01T00:00:00.000Z',
-      new Date('2026-04-20T00:00:00.000Z'),
     )
 
-    expect(timeline.map((item) => item.status)).toEqual([
-      'pending',
-      'paid',
-    ])
-    expect(timeline[0]?.period.month).toBe(4)
-    expect(timeline[1]?.period.month).toBe(3)
+    expect(timeline.map((item) => item.period.month)).toEqual([1, 3])
+    expect(timeline.map((item) => item.period.year)).toEqual([2026, 2026])
+    expect(timeline.map((item) => item.status)).toEqual(['paid', 'paid'])
+    expect(timeline.some((item) => item.status === 'pending')).toBe(false)
   })
 
   it('returns deterministic avatar gradients', () => {

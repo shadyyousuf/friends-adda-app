@@ -122,7 +122,6 @@ function EventDetailPage() {
       ? buildMemberTimeline(
           selectedHistoryMember,
           detail.funds,
-          detail.event.created_at,
         )
       : []
   const paymentMember =
@@ -491,10 +490,10 @@ function EventDetailPage() {
             </div>
             {fundStatusItems.length === 0 ? (
               <div className="empty-state">
-                <h4 className="empty-state-title">No eligible members yet</h4>
+                <h4 className="empty-state-title">No members in this event yet</h4>
                 <p className="muted-copy">
-                  Members will appear here once they have joined by the selected
-                  month.
+                  Add members to start recording payments for the selected month
+                  and year.
                 </p>
               </div>
             ) : (
@@ -989,9 +988,9 @@ function ContributionTimeline({
   if (items.length === 0) {
     return (
       <div className="empty-state">
-        <h4 className="empty-state-title">No contribution history yet</h4>
+        <h4 className="empty-state-title">No recorded payments yet</h4>
         <p className="muted-copy">
-          This member has not accumulated any visible monthly history.
+          This member has no saved payment transactions in this event yet.
         </p>
       </div>
     )

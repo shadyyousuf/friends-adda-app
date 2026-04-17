@@ -167,7 +167,6 @@ export function buildFundStatusItems(
   period: FundPeriod,
 ) {
   return members
-    .filter((member) => isMemberActiveForPeriod(member, period))
     .map((member) => {
       const payment = findPaymentForPeriod(contributions, member.user_id, period)
       const status = payment?.status === 'paid' ? 'paid' : 'pending'
@@ -235,25 +234,26 @@ export function buildLeaderboard(
 export function buildMemberTimeline(
   member: FundTrackerMember,
   contributions: FundTrackerContribution[],
-  eventCreatedAt: string,
-  referenceDate = new Date(),
 ) {
-  const currentPeriod = getCurrentPeriod(referenceDate)
-  const eventStart = getCurrentPeriod(new Date(eventCreatedAt))
-  const memberStart = getCurrentPeriod(new Date(member.joined_at))
-  const start =
-    comparePeriods(eventStart, memberStart) > 0 ? eventStart : memberStart
-
-  return getPeriodsBetween(start, currentPeriod).map((period) => {
-    const payment = findPaymentForPeriod(contributions, member.user_id, period)
-    const status = payment?.status === 'paid' ? 'paid' : 'pending'
-
-    return {
-      period,
+  return contributions
+    .filter(
+      (contribution) =>
+        contribution.user_id === member.user_id && contribution.status === 'paid',
+    )
+    .sort((left, right) =>
+      comparePeriods(
+        { year: left.year, month: left.month },
+        { year: right.year, month: right.month },
+      ),
+    )
+    .map((payment) => ({
+      period: {
+        year: payment.year,
+        month: payment.month,
+      },
       payment,
-      status,
-    } satisfies TimelineItem
-  })
+      status: payment.status,
+    } satisfies TimelineItem))
 }
 
 export function getAvatarGradient(seed: string) {
