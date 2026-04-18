@@ -22,10 +22,10 @@ export default function BottomNav() {
             key={item.to}
             to={item.to}
             className="bottom-nav-link"
+            aria-label={item.label}
             activeProps={{ className: 'bottom-nav-link is-active' }}
           >
-            <Icon size={18} strokeWidth={2.1} />
-            <span>{item.label}</span>
+            <Icon size={24} strokeWidth={2.2} />
           </Link>
         )
       })}
@@ -47,10 +47,10 @@ export default function BottomNav() {
             key={item.to}
             to={item.to}
             className="bottom-nav-link"
+            aria-label={item.label}
             activeProps={{ className: 'bottom-nav-link is-active' }}
           >
-            <Icon size={18} strokeWidth={2.1} />
-            <span>{item.label}</span>
+            <Icon size={24} strokeWidth={2.2} />
           </Link>
         )
       })}
