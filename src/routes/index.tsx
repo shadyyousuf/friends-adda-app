@@ -1,5 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
-import { Plus } from 'lucide-react'
+import { Link, createFileRoute, useRouterState } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
@@ -23,6 +22,8 @@ export const Route = createFileRoute('/')({
 function HomePage() {
   const { user, profile, isLoading } = useAuth()
   const queryClient = useQueryClient()
+  const locationSearch = useRouterState({ select: (state) => state.location.search })
+  const locationPathname = useRouterState({ select: (state) => state.location.pathname })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -34,6 +35,7 @@ function HomePage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [joinError, setJoinError] = useState<string | null>(null)
   const [activeJoinEventId, setActiveJoinEventId] = useState<string | null>(null)
+  const isFundTracker = eventType === 'fund_tracker'
 
   const canLoadDashboard = Boolean(user && profile?.is_approved)
   const dashboardQuery = useQuery({
@@ -64,6 +66,32 @@ function HomePage() {
       window.removeEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)
     }
   }, [dashboardQuery])
+
+  useEffect(() => {
+    const search = new URLSearchParams(locationSearch)
+
+    if (search.get('create') !== '1') {
+      return
+    }
+
+    if (isCreateOpen) {
+      return
+    }
+
+    setTitle('')
+    setDescription('')
+    setEventType('general')
+    setEventDate(getTodayDateInputValue())
+    setVisibility('public')
+    setTargetAmount('')
+    setCreateError(null)
+    setIsCreateOpen(true)
+
+    search.delete('create')
+    const nextUrl = `${locationPathname}${search.toString() ? `?${search.toString()}` : ''}`
+    window.history.replaceState({}, '', nextUrl)
+    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+  }, [locationSearch, isCreateOpen, locationPathname])
 
   function openCreateDrawer() {
     setTitle('')
@@ -242,7 +270,6 @@ function HomePage() {
             <div className="split-header">
               <div className="section-header-copy">
                 <p className="eyebrow">Create event</p>
-                <h3 className="section-title">New event</h3>
               </div>
               <button
                 type="button"
@@ -275,62 +302,66 @@ function HomePage() {
                 />
               </label>
 
-              <label className="stack-xs">
-                <span className="field-label">Event date</span>
-                <input
-                  required
-                  type="date"
-                  className="field-input"
-                  value={eventDate}
-                  onChange={(event) => setEventDate(event.target.value)}
-                />
-              </label>
-
-              <label className="stack-xs">
-                <span className="field-label">Type</span>
-                <select
-                  className="field-input"
-                  value={eventType}
-                  onChange={(event) => setEventType(event.target.value as EventType)}
-                >
-                  <option value="general">General</option>
-                  <option value="fund_tracker">Fund tracker</option>
-                  <option value="random_picker">Random picker</option>
-                </select>
-              </label>
-
-              <label className="stack-xs">
-                <span className="field-label">Visibility</span>
-                <select
-                  className="field-input"
-                  value={visibility}
-                  onChange={(event) =>
-                    setVisibility(event.target.value as EventVisibility)
-                  }
-                >
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                </select>
-              </label>
-
-              {eventType === 'fund_tracker' ? (
+              <div className="create-form-row">
                 <label className="stack-xs">
-                  <span className="field-label">Target amount (optional)</span>
+                  <span className="field-label">Event date</span>
                   <input
-                    type="number"
-                    min="1"
-                    step="0.01"
+                    required
+                    type="date"
                     className="field-input"
-                    value={targetAmount}
-                    onChange={(event) => setTargetAmount(event.target.value)}
-                    placeholder="15000"
+                    value={eventDate}
+                    onChange={(event) => setEventDate(event.target.value)}
                   />
                 </label>
-              ) : null}
+
+                <label className="stack-xs">
+                  <span className="field-label">Type</span>
+                  <select
+                    className="field-input"
+                    value={eventType}
+                    onChange={(event) => setEventType(event.target.value as EventType)}
+                  >
+                    <option value="general">General</option>
+                    <option value="fund_tracker">Fund tracker</option>
+                    <option value="random_picker">Random picker</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="create-form-row">
+                <label className="stack-xs">
+                  <span className="field-label">Visibility</span>
+                  <select
+                    className="field-input"
+                    value={visibility}
+                    onChange={(event) =>
+                      setVisibility(event.target.value as EventVisibility)
+                    }
+                  >
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                  </select>
+                </label>
+
+                {isFundTracker ? (
+                  <label className="stack-xs">
+                    <span className="field-label">Target amount (optional)</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      className="field-input"
+                      value={targetAmount}
+                      onChange={(event) => setTargetAmount(event.target.value)}
+                      placeholder="15000"
+                    />
+                  </label>
+                ) : null}
+              </div>
 
               {createError ? <p className="form-error">{createError}</p> : null}
 
-              <div className="actions-row">
+              <div className="actions-row create-drawer-actions">
                 <button
                   type="submit"
                   className="primary-button"
@@ -351,15 +382,6 @@ function HomePage() {
         </section>
       ) : null}
 
-      <button
-        type="button"
-        className="fab-button"
-        onClick={openCreateDrawer}
-        aria-label="Create event"
-        title="Create event"
-      >
-        <Plus size={22} />
-      </button>
     </div>
   )
 }
