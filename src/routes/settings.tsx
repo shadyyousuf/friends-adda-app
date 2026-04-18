@@ -1,8 +1,14 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import { signOut } from '../utils/auth'
+import {
+  applyThemeMode,
+  getStoredThemeMode,
+  setThemeMode,
+  type ThemeMode,
+} from '../utils/theme'
 import {
   approvedMemberProfilesQueryOptions,
   approveUser,
@@ -124,28 +130,31 @@ function SettingsPage() {
     }
   }
 
+  const themePreferenceCard = <ThemePreferenceCard />
+
   if (!user) {
     return (
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Settings</p>
-        <h2 className="panel-title">No active session</h2>
-        <p className="muted-copy">
-          Log in or create an account first. Profile editing arrives in Phase 4.
-        </p>
-        <div className="actions-row">
-          <Link to="/login" className="primary-button">
-            Log in
-          </Link>
-          <Link to="/signup" className="secondary-button">
-            Sign up
-          </Link>
-        </div>
-      </section>
+      <div className="stack-lg">
+        {themePreferenceCard}
+        <section className="glass-card panel stack-md">
+          <p className="eyebrow">Settings</p>
+          <h2 className="panel-title">No active session</h2>
+          <div className="actions-row">
+            <Link to="/login" className="primary-button">
+              Log in
+            </Link>
+            <Link to="/signup" className="secondary-button">
+              Sign up
+            </Link>
+          </div>
+        </section>
+      </div>
     )
   }
 
   return (
     <div className="stack-lg">
+      {themePreferenceCard}
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Settings</p>
         <h2 className="panel-title">Account status</h2>
@@ -252,7 +261,6 @@ function SettingsPage() {
             {pendingProfiles.length === 0 ? (
               <div className="empty-state">
                 <h4 className="empty-state-title">Approval queue is clear</h4>
-                <p className="muted-copy">No users are waiting for approval right now.</p>
               </div>
             ) : (
               <div className="stack-sm">
@@ -275,10 +283,6 @@ function SettingsPage() {
             {approvedMembers.length === 0 ? (
               <div className="empty-state">
                 <h4 className="empty-state-title">No promotion candidates</h4>
-                <p className="muted-copy">
-                  Approved members will appear here once they are available for
-                  promotion.
-                </p>
               </div>
             ) : (
               <div className="stack-sm">
@@ -313,6 +317,72 @@ function SettingsPage() {
   )
 }
 
+function ThemePreferenceCard() {
+  const [mode, setMode] = useState<ThemeMode>('auto')
+
+  useEffect(() => {
+    const initialMode = getStoredThemeMode()
+    setMode(initialMode)
+    applyThemeMode(initialMode)
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'auto') {
+      return
+    }
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyThemeMode('auto')
+
+    media.addEventListener('change', onChange)
+    return () => {
+      media.removeEventListener('change', onChange)
+    }
+  }, [mode])
+
+  useEffect(() => {
+    function handleThemeUpdate() {
+      const nextMode = getStoredThemeMode()
+      setMode(nextMode)
+      applyThemeMode(nextMode)
+    }
+
+    window.addEventListener('themechange', handleThemeUpdate)
+    window.addEventListener('storage', handleThemeUpdate)
+    return () => {
+      window.removeEventListener('themechange', handleThemeUpdate)
+      window.removeEventListener('storage', handleThemeUpdate)
+    }
+  }, [])
+
+  function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextMode = event.target.value as ThemeMode
+    setMode(nextMode)
+    setThemeMode(nextMode)
+  }
+
+  return (
+    <section className="glass-card panel stack-md">
+      <p className="eyebrow">Appearance</p>
+      <h2 className="panel-title">Theme</h2>
+      <label className="stack-xs">
+        <span className="field-label">Theme mode</span>
+        <select
+          value={mode}
+          onChange={handleThemeChange}
+          className="field-input"
+        >
+          {THEME_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </section>
+  )
+}
+
 function UserAdminCard({
   profile,
   primaryActionLabel,
@@ -332,7 +402,7 @@ function UserAdminCard({
         <strong className="info-value">
           {profile.full_name || 'Unnamed user'}
         </strong>
-        <span className="muted-copy">{profile.email}</span>
+        <span className="field-label">{profile.email}</span>
         <span className="field-label">
           Blood group: {profile.blood_group ?? 'Not set'}
         </span>
@@ -376,3 +446,12 @@ const BLOOD_GROUPS = [
   'O+',
   'O-',
 ] as const
+
+const THEME_OPTIONS: Array<{
+  value: ThemeMode
+  label: string
+}> = [
+  { value: 'auto', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]

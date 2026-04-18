@@ -39,10 +39,6 @@ function LoginPage() {
       <div className="stack-sm">
         <p className="eyebrow">Login</p>
         <h2 className="panel-title">Access your account</h2>
-        <p className="muted-copy">
-          Use your email and password. If you recently signed up, approval may
-          still be pending after login.
-        </p>
       </div>
 
       <form className="stack-md" onSubmit={handleSubmit}>
@@ -78,10 +74,11 @@ function LoginPage() {
           {isSubmitting ? 'Signing in...' : 'Log in'}
         </button>
       </form>
-
-      <p className="muted-copy">
-        Need an account? <Link to="/signup">Create one</Link>
-      </p>
+      <div className="actions-row">
+        <Link to="/signup" className="secondary-button">
+          Create one
+        </Link>
+      </div>
     </section>
   )
 }

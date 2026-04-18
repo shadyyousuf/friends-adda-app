@@ -244,14 +244,7 @@ function EventDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <AnimatedContentLoader
-        isVisible
-        mode="panel"
-        title="Loading event"
-        copy="Checking your session and event access."
-      />
-    )
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   if (!user) {
@@ -259,7 +252,6 @@ function EventDetailPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>
         <h2 className="panel-title">Login required</h2>
-        <p className="muted-copy">Sign in before opening event details.</p>
         <div className="actions-row">
           <Link to="/login" className="primary-button">
             Log in
@@ -273,14 +265,7 @@ function EventDetailPage() {
   }
 
   if (detailQuery.isPending && !detail.event) {
-    return (
-      <AnimatedContentLoader
-        isVisible
-        mode="panel"
-        title="Loading event"
-        copy="Fetching the event overview and member data."
-      />
-    )
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   if (!detail.event && !detailQuery.isPending) {
@@ -288,10 +273,6 @@ function EventDetailPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>
         <h2 className="panel-title">Event not found</h2>
-        <p className="muted-copy">
-          The event could not be loaded, or your account does not have access to
-          it.
-        </p>
         <Link to="/" className="secondary-button">
           Back to dashboard
         </Link>
@@ -308,18 +289,12 @@ function EventDetailPage() {
           <div className="section-header-copy">
             <p className="eyebrow">Event detail</p>
             <h2 className="panel-title">{event?.title ?? 'Loading...'}</h2>
-            <p className="section-note">
-              Track the event hierarchy and the active module without leaving the
-              page.
-            </p>
           </div>
           <Link to="/" className="secondary-button">
             Back
           </Link>
         </div>
-        <p className="muted-copy">
-          {event?.description || 'No description added for this event yet.'}
-        </p>
+        {event?.description ? <p className="field-label">{event.description}</p> : null}
         <div className="info-grid">
           <InfoItem label="Type" value={formatEventType(event?.type)} />
           <InfoItem label="Privacy" value={formatVisibility(event?.visibility)} />
@@ -475,10 +450,6 @@ function EventDetailPage() {
                 style={{ width: `${monthlyProgress.percentage}%` }}
               />
             </div>
-            <p className="module-note">
-              Swipe right to move to older months and left to move back toward the
-              current month.
-            </p>
           </section>
 
           <section
@@ -489,20 +460,12 @@ function EventDetailPage() {
               <div className="section-header-copy">
                 <p className="eyebrow">Payment status</p>
                 <h3 className="section-title">Pending first, paid after</h3>
-                <p className="section-note">
-                  Members below are shown for {selectedPeriodLabel}. Confirming a
-                  payment saves it against this exact month and year.
-                </p>
               </div>
               <span className="status-chip">{fundStatusItems.length}</span>
             </div>
             {fundStatusItems.length === 0 ? (
               <div className="empty-state">
                 <h4 className="empty-state-title">No members in this event yet</h4>
-                <p className="muted-copy">
-                  Add members to start recording payments for the selected month
-                  and year.
-                </p>
               </div>
             ) : (
               <div className="stack-sm">
@@ -526,7 +489,7 @@ function EventDetailPage() {
                           </span>
                         </div>
                         <span className="field-label">
-                          Status shown for {selectedPeriodLabel}
+                          Status: {selectedPeriodLabel}
                         </span>
                       </div>
                     </div>
@@ -571,7 +534,9 @@ function EventDetailPage() {
               <span className="status-chip">{leaderboard.length}</span>
             </div>
             {leaderboard.length === 0 ? (
-              <p className="muted-copy">No members available for leaderboard data.</p>
+              <div className="empty-state">
+                <h4 className="empty-state-title">No members yet</h4>
+              </div>
             ) : (
               <div className="stack-sm">
                 {leaderboard.map((entry, index) => (
@@ -587,7 +552,7 @@ function EventDetailPage() {
                         <strong className="info-value">
                           {getMemberName(entry.member)}
                         </strong>
-                        <span className="muted-copy">
+                        <span className="field-label">
                           {entry.monthsPaid} months paid
                         </span>
                       </div>
@@ -628,10 +593,6 @@ function EventDetailPage() {
               <div className="section-header-copy">
                 <p className="eyebrow">Member management</p>
                 <h3 className="section-title">Captain and admin controls</h3>
-                <p className="section-note">
-                  Promote members to co-captain, demote them back to member, or
-                  remove them from the event.
-                </p>
               </div>
               <button
                 type="button"
@@ -641,16 +602,6 @@ function EventDetailPage() {
                 Close
               </button>
             </div>
-
-            <p className="drawer-footer-note">
-              Non-admins cannot demote or remove the captain, and captains cannot
-              remove themselves.
-            </p>
-
-            <p className="muted-copy">
-              Each action is applied immediately and refreshes the event detail
-              state after completion.
-            </p>
 
             <div className="stack-sm">
               {detail.subscribers.map((subscriber) => (
@@ -688,8 +639,10 @@ function EventDetailPage() {
             <div className="member-row">
               <MemberAvatar member={paymentMember} />
               <div className="stack-xs">
-                <strong className="info-value">{getMemberName(paymentMember)}</strong>
-                <span className="muted-copy">{paymentMember.profiles.email}</span>
+                <strong className="info-value">
+                  {getMemberName(paymentMember)}
+                </strong>
+                <span className="field-label">{paymentMember.profiles.email}</span>
                 <div className="member-card-meta">
                   <span className="event-badge">Month: {selectedMonthLabel}</span>
                   <span className="event-badge">Year: {selectedPeriod.year}</span>
@@ -708,10 +661,6 @@ function EventDetailPage() {
                   onChange={(event) => setPaymentAmount(event.target.value)}
                 />
               </label>
-              <p className="module-note">
-                Minimum amount is {formatMoney(DEFAULT_MONTHLY_AMOUNT)}. Confirming
-                this will save a paid transaction for {selectedPeriodLabel}.
-              </p>
               <div className="actions-row">
                 <button
                   type="submit"
@@ -844,7 +793,7 @@ function SubscriberPreview({
         <MemberAvatar member={subscriber} />
         <div className="stack-xs">
           <strong className="info-value">{getMemberName(subscriber)}</strong>
-          <span className="muted-copy">{subscriber.profiles.email}</span>
+          <span className="field-label">{subscriber.profiles.email}</span>
         </div>
       </div>
       <div className="member-card-meta">
@@ -928,7 +877,7 @@ function MemberManagementCard({
         <MemberAvatar member={subscriber} />
         <div className="stack-xs">
           <strong className="info-value">{getMemberName(subscriber)}</strong>
-          <span className="muted-copy">{subscriber.profiles.email}</span>
+          <span className="field-label">{subscriber.profiles.email}</span>
           <span className="field-label">
             Blood group: {subscriber.profiles.blood_group ?? 'Not set'}
           </span>
@@ -997,9 +946,6 @@ function ContributionTimeline({
     return (
       <div className="empty-state">
         <h4 className="empty-state-title">No recorded payments yet</h4>
-        <p className="muted-copy">
-          This member has no saved payment transactions in this event yet.
-        </p>
       </div>
     )
   }
@@ -1068,9 +1014,6 @@ function RandomPickerModule({
       <div className="section-header-copy">
         <p className="eyebrow">Random picker</p>
         <h3 className="section-title">Spin to choose who pays</h3>
-        <p className="module-note">
-          Record every random pick so the group has a visible payment trail.
-        </p>
       </div>
 
       <form className="stack-md" onSubmit={onSpin}>
@@ -1093,16 +1036,13 @@ function RandomPickerModule({
         >
           {activeAction === 'spin' ? 'Picking...' : 'Spin / Pick'}
         </button>
-        {!canSpin ? (
-          <p className="module-note">
-            Only captains, co-captains, and app admins can spin the picker.
-          </p>
-        ) : null}
       </form>
 
       <div className="stack-sm">
         {detail.activities.length === 0 ? (
-          <p className="muted-copy">No random picks have been recorded yet.</p>
+          <div className="empty-state">
+            <h4 className="empty-state-title">No random picks yet</h4>
+          </div>
         ) : (
           detail.activities.map((activity) => {
             const winnerId =
@@ -1129,8 +1069,8 @@ function RandomPickerModule({
                   </strong>
                   <span className="event-badge">{formatMoney(amount)}</span>
                 </div>
-                <span className="muted-copy">
-                  Picked at {new Date(activity.created_at).toLocaleString()}
+                <span className="field-label">
+                  {new Date(activity.created_at).toLocaleString()}
                 </span>
               </article>
             )

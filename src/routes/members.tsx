@@ -47,7 +47,7 @@ function MembersPage() {
   })
 
   if (isLoading) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading members" copy="Checking your session first." />
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   if (!user) {
@@ -55,7 +55,6 @@ function MembersPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Members</p>
         <h2 className="panel-title">Login required</h2>
-        <p className="muted-copy">Sign in to browse the approved members list.</p>
       </section>
     )
   }
@@ -86,7 +85,7 @@ function MembersPage() {
             className="field-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search member name, email, or blood group"
+            placeholder="Search"
           />
         </label>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
@@ -99,13 +98,10 @@ function MembersPage() {
         </div>
 
         {membersQuery.isPending && members.length === 0 ? (
-          <AnimatedContentLoader isVisible mode="panel" title="Loading approved members" copy="Pulling the latest member directory from the server." />
+          <AnimatedContentLoader isVisible mode="panel" />
         ) : filteredMembers.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">No match found</h4>
-            <p className="muted-copy">
-              Try a different name, email fragment, or blood group value.
-            </p>
           </div>
         ) : (
           <div className="stack-sm">
@@ -115,7 +111,7 @@ function MembersPage() {
                   <strong className="info-value">
                     {member.full_name || 'Unnamed member'}
                   </strong>
-                  <span className="muted-copy">{member.email}</span>
+                  <span className="field-label">{member.email}</span>
                 </div>
                 <div className="member-directory-meta">
                   <span className="event-badge event-badge-strong">

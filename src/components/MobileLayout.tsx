@@ -30,9 +30,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
           <div className="topbar-copy">
             <p className="eyebrow page-kicker">{pageMeta.kicker}</p>
             <h1 className="topbar-title">{pageMeta.title}</h1>
-            {pageMeta.subtitle ? (
-              <p className="topbar-support">{pageMeta.subtitle}</p>
-            ) : null}
           </div>
           {isDashboardRoute && user && profile?.is_approved ? (
             <button
@@ -50,14 +47,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
             <div className={`status-chip ${status.className}`}>{status.label}</div>
           )}
         </header>
-
-        {!isAuthScreen && pageMeta.contextLabel && pageMeta.contextHint ? (
-          <header className="topbar-context" aria-label="Page context">
-            <span className="field-label">{pageMeta.contextLabel}</span>
-            <span className="topbar-divider" aria-hidden="true" />
-            <span className="field-label">{pageMeta.contextHint}</span>
-          </header>
-        ) : null}
 
         {showPendingScreen ? (
           <PendingApprovalCard />
@@ -80,17 +69,7 @@ function PendingApprovalCard() {
     <main className="content-shell">
       <section className="glass-card panel stack-lg centered-panel">
         <div className="pending-badge">Locked</div>
-        <div className="stack-sm">
-          <h2 className="panel-title">Pending Admin Approval</h2>
-          <p className="muted-copy">
-            Your account exists, but an app admin still needs to approve it
-            before you can access events and members.
-          </p>
-          <p className="section-note">
-            You can still open settings to complete your profile details and
-            confirm your blood group.
-          </p>
-        </div>
+        <h2 className="panel-title">Pending Approval</h2>
         <Link to="/settings" className="primary-button">
           Open settings
         </Link>
@@ -104,18 +83,7 @@ function ProfileSetupCard() {
     <main className="content-shell">
       <section className="glass-card panel stack-lg centered-panel">
         <div className="pending-badge">Setup</div>
-        <div className="stack-sm">
-          <h2 className="panel-title">Preparing your account</h2>
-          <p className="muted-copy">
-            Your auth session is active, but the profile row is not readable
-            yet. If this persists, confirm that the SQL migration was applied in
-            Supabase and then refresh.
-          </p>
-          <p className="section-note">
-            Until the profile row becomes available, event data and member
-            access stay intentionally locked.
-          </p>
-        </div>
+        <h2 className="panel-title">Account Setup</h2>
         <Link to="/settings" className="primary-button">
           Open settings
         </Link>
@@ -135,9 +103,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Welcome back',
-      subtitle: 'Log in to pick up where your group left off.',
-      contextLabel: 'Authentication',
-      contextHint: 'Secure access',
     }
   }
 
@@ -145,9 +110,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Create account',
-      subtitle: 'Join the group space and wait for admin approval.',
-      contextLabel: 'Authentication',
-      contextHint: 'New member setup',
     }
   }
 
@@ -155,9 +117,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Member directory',
-      subtitle: '',
-      contextLabel: '',
-      contextHint: '',
     }
   }
 
@@ -165,9 +124,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Event history',
-      subtitle: '',
-      contextLabel: '',
-      contextHint: '',
     }
   }
 
@@ -175,9 +131,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Account settings',
-      subtitle: '',
-      contextLabel: '',
-      contextHint: '',
     }
   }
 
@@ -185,9 +138,6 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: 'Event detail',
-      subtitle: 'Review members, modules, and control access from one screen.',
-      contextLabel: 'Event',
-      contextHint: 'Members and modules',
     }
   }
 
@@ -195,18 +145,12 @@ function getPageMeta(
     return {
       kicker: 'Friends Adda',
       title: firstName ? `Welcome, ${firstName}` : 'Welcome back',
-      subtitle: '',
-      contextLabel: '',
-      contextHint: '',
     }
   }
 
   return {
     kicker: 'Friends Adda',
     title: 'Group events, simplified',
-    subtitle: 'Plan outings, track money, and manage roles without losing context.',
-    contextLabel: 'Overview',
-    contextHint: 'Guest view',
   }
 }
 

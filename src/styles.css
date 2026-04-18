@@ -18,6 +18,76 @@
   color-scheme: dark;
   --font-body: "Manrope", "Segoe UI", sans-serif;
   --font-display: "Space Grotesk", "Avenir Next", sans-serif;
+  --page-wrap: min(100%, 72rem);
+
+  --bg-page-start: #08111e;
+  --bg-page-mid: #0b1524;
+  --bg-page-end: #07111f;
+  --bg-glow-primary: rgba(47, 180, 164, 0.22);
+  --bg-glow-secondary: rgba(127, 217, 255, 0.18);
+
+  --text-primary: #eff7ff;
+  --text-secondary: rgba(223, 236, 248, 0.78);
+  --text-tertiary: rgba(223, 236, 248, 0.64);
+  --text-on-surface: #041119;
+
+  --surface-strong: rgba(11, 21, 36, 0.74);
+  --surface: rgba(24, 36, 57, 0.82);
+  --surface-soft: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.055);
+
+  --line: rgba(255, 255, 255, 0.09);
+  --chip-bg: rgba(255, 255, 255, 0.05);
+  --chip-line: rgba(255, 255, 255, 0.12);
+  --header-bg: rgba(8, 17, 30, 0.78);
+  --link-bg-hover: rgba(127, 217, 255, 0.1);
+  --sea-ink: #dcf8ff;
+  --sea-ink-soft: rgba(223, 236, 248, 0.76);
+  --control-bg: rgba(8, 17, 31, 0.7);
+  --control-border: rgba(255, 255, 255, 0.09);
+  --focus-ring: rgba(127, 217, 255, 0.16);
+
+  --nav-bg: rgba(12, 24, 40, 0.85);
+  --nav-active-bg: rgba(87, 209, 190, 0.14);
+  --nav-active-border: rgba(157, 230, 216, 0.12);
+  --empty-bg: linear-gradient(180deg, rgba(87, 209, 190, 0.06), rgba(255, 255, 255, 0.03));
+  --empty-border: rgba(157, 230, 216, 0.22);
+}
+
+.light {
+  color-scheme: light;
+  --bg-page-start: #f4f8fc;
+  --bg-page-mid: #edf3f8;
+  --bg-page-end: #f7fafc;
+  --bg-glow-primary: rgba(47, 180, 164, 0.14);
+  --bg-glow-secondary: rgba(127, 217, 255, 0.16);
+
+  --text-primary: #0f1a2b;
+  --text-secondary: rgba(15, 26, 43, 0.86);
+  --text-tertiary: rgba(15, 26, 43, 0.72);
+  --text-on-surface: #041119;
+
+  --surface-strong: rgba(250, 252, 255, 0.98);
+  --surface: rgba(255, 255, 255, 0.94);
+  --surface-soft: rgba(255, 255, 255, 0.82);
+  --surface-hover: rgba(255, 255, 255, 1);
+
+  --line: rgba(15, 26, 43, 0.1);
+  --chip-bg: rgba(15, 26, 43, 0.06);
+  --chip-line: rgba(15, 26, 43, 0.12);
+  --header-bg: rgba(255, 255, 255, 0.8);
+  --link-bg-hover: rgba(47, 180, 164, 0.1);
+  --sea-ink: #0f1a2b;
+  --sea-ink-soft: rgba(15, 26, 43, 0.66);
+  --control-bg: rgba(255, 255, 255, 0.96);
+  --control-border: rgba(15, 26, 43, 0.12);
+  --focus-ring: rgba(47, 180, 164, 0.16);
+
+  --nav-bg: rgba(255, 255, 255, 0.96);
+  --nav-active-bg: rgba(47, 180, 164, 0.12);
+  --nav-active-border: rgba(47, 180, 164, 0.16);
+  --empty-bg: linear-gradient(180deg, rgba(47, 180, 164, 0.08), rgba(255, 255, 255, 0.72));
+  --empty-border: rgba(47, 180, 164, 0.18);
 }
 
 * {
@@ -34,11 +104,11 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-body);
-  color: #eff7ff;
+  color: var(--text-primary);
   background:
-    radial-gradient(circle at top, rgba(47, 180, 164, 0.22), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(127, 217, 255, 0.18), transparent 30%),
-    linear-gradient(180deg, #08111e 0%, #0b1524 50%, #07111f 100%);
+    radial-gradient(circle at top, var(--bg-glow-primary), transparent 34%),
+    radial-gradient(circle at bottom right, var(--bg-glow-secondary), transparent 30%),
+    linear-gradient(180deg, var(--bg-page-start) 0%, var(--bg-page-mid) 50%, var(--bg-page-end) 100%);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -56,6 +126,37 @@ select {
 textarea {
   font: inherit;
   resize: vertical;
+}
+
+.page-wrap {
+  width: var(--page-wrap);
+  margin-inline: auto;
+}
+
+.island-kicker {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.nav-link {
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  color: var(--sea-ink-soft);
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-link.is-active {
+  color: var(--sea-ink);
+  background: var(--link-bg-hover);
 }
 
 .app-shell {
@@ -77,7 +178,7 @@ textarea {
   left: -5rem;
   height: 16rem;
   width: 16rem;
-  background: rgba(47, 180, 164, 0.25);
+  background: var(--bg-glow-primary);
 }
 
 .app-backdrop-secondary {
@@ -85,7 +186,7 @@ textarea {
   bottom: 8rem;
   height: 14rem;
   width: 14rem;
-  background: rgba(127, 217, 255, 0.18);
+  background: var(--bg-glow-secondary);
 }
 
 .mobile-frame {
@@ -94,7 +195,7 @@ textarea {
   width: min(100%, 30rem);
   margin: 0 auto;
   padding:
-    max(0.9rem, env(safe-area-inset-top))
+    max(0.35rem, env(safe-area-inset-top))
     1rem
     calc(7.2rem + env(safe-area-inset-bottom));
 }
@@ -132,8 +233,8 @@ textarea {
 }
 
 .glass-card {
-  background: linear-gradient(180deg, rgba(24, 36, 57, 0.82), rgba(11, 21, 36, 0.74));
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, var(--surface), var(--surface-strong));
+  border: 1px solid var(--line);
   box-shadow:
     0 18px 50px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -147,11 +248,11 @@ textarea {
   justify-content: space-between;
   gap: 1rem;
   position: sticky;
-  top: max(0.45rem, env(safe-area-inset-top));
+  top: 0;
   z-index: 20;
   border-radius: 1.6rem;
   padding: 1rem 1rem 1.1rem;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0;
 }
 
 .topbar-copy {
@@ -177,7 +278,7 @@ textarea {
 .topbar-support {
   margin: 0;
   max-width: 26ch;
-  color: rgba(223, 236, 248, 0.72);
+  color: var(--text-secondary);
   font-size: 0.84rem;
   line-height: 1.4;
 }
@@ -207,10 +308,10 @@ textarea {
   justify-content: center;
   width: 2.9rem;
   height: 2.9rem;
-  border: 1px solid rgba(127, 217, 255, 0.16);
+  border: 1px solid var(--chip-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #dcf8ff;
+  background: var(--chip-bg);
+  color: var(--sea-ink);
   cursor: pointer;
   transition:
     transform 180ms ease,
@@ -222,8 +323,8 @@ textarea {
 .topbar-action-button:hover,
 .topbar-action-button:focus-visible {
   transform: translateY(-1px);
-  background: rgba(127, 217, 255, 0.1);
-  border-color: rgba(127, 217, 255, 0.28);
+  background: var(--link-bg-hover);
+  border-color: var(--chip-line);
   box-shadow: 0 10px 24px rgba(10, 24, 39, 0.24);
 }
 
@@ -243,7 +344,7 @@ textarea {
 .animated-loader-card {
   width: min(100%, 28.5rem);
   border-radius: 1.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line);
   background: rgba(7, 17, 31, 0.78);
   padding: 0.95rem;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
@@ -290,7 +391,7 @@ textarea {
 .animated-loader-line {
   position: relative;
   overflow: hidden;
-  background: rgba(223, 236, 248, 0.12);
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
 }
 
 .animated-loader-pill {
@@ -356,8 +457,8 @@ textarea {
   gap: 0.55rem;
   padding: 0.85rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
 }
 
 .animated-loader-block-stat {
@@ -453,18 +554,20 @@ textarea {
   line-height: 1;
   font-weight: 800;
   max-width: 12ch;
+  color: var(--text-primary);
 }
 
 .panel-title {
   font-size: 1.35rem;
   line-height: 1.1;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .section-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #eff7ff;
+  color: var(--text-primary);
 }
 
 .eyebrow {
@@ -478,7 +581,7 @@ textarea {
 
 .muted-copy {
   margin: 0;
-  color: rgba(223, 236, 248, 0.78);
+  color: var(--text-secondary);
   line-height: 1.55;
 }
 
@@ -487,7 +590,7 @@ textarea {
 .module-note,
 .drawer-footer-note {
   margin: 0;
-  color: rgba(223, 236, 248, 0.64);
+  color: var(--text-tertiary);
   font-size: 0.88rem;
   line-height: 1.5;
 }
@@ -593,16 +696,16 @@ textarea {
 
 .primary-button {
   border: 0;
-  color: #041119;
+  color: var(--text-on-surface);
   background: linear-gradient(135deg, #9de6d8 0%, #57d1be 45%, #7fd9ff 100%);
   font-weight: 800;
 }
 
 .secondary-button,
 .danger-button {
-  color: #eff7ff;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
   font-weight: 700;
 }
 
@@ -635,7 +738,7 @@ textarea {
   border: 0;
   padding: 0;
   background: transparent;
-  color: rgba(223, 236, 248, 0.78);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
@@ -643,7 +746,7 @@ textarea {
 .info-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: rgba(223, 236, 248, 0.78);
+  color: var(--text-secondary);
 }
 
 .field-input {
@@ -651,20 +754,20 @@ textarea {
   min-height: 3rem;
   padding: 0.8rem 0.95rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(8, 17, 31, 0.7);
-  color: #eff7ff;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
   outline: none;
   appearance: none;
 }
 
 .field-input:focus {
   border-color: rgba(127, 217, 255, 0.6);
-  box-shadow: 0 0 0 3px rgba(127, 217, 255, 0.12);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .field-input::placeholder {
-  color: rgba(223, 236, 248, 0.44);
+  color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
 }
 
 .field-textarea {
@@ -678,7 +781,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(127, 217, 255, 0.16);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .form-error,
@@ -704,7 +807,7 @@ textarea:focus-visible {
 .feature-list {
   margin: 0;
   padding-left: 1.2rem;
-  color: rgba(223, 236, 248, 0.82);
+  color: var(--text-secondary);
   line-height: 1.7;
 }
 
@@ -721,8 +824,8 @@ textarea:focus-visible {
 .member-directory-card,
 .history-content {
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
   transition:
     transform 180ms ease,
     border-color 180ms ease,
@@ -766,7 +869,7 @@ textarea:focus-visible {
 .history-item:focus-visible .history-content {
   transform: translateY(-2px);
   border-color: rgba(127, 217, 255, 0.22);
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--surface-hover);
 }
 
 .event-badges {
@@ -833,7 +936,7 @@ textarea:focus-visible {
   height: 0.32rem;
   border-radius: 999px;
   margin: 0 auto 0.9rem;
-  background: rgba(223, 236, 248, 0.18);
+  background: color-mix(in srgb, var(--text-secondary) 24%, transparent);
 }
 
 .fab-button {
@@ -848,7 +951,7 @@ textarea:focus-visible {
   height: 3.6rem;
   border: 0;
   border-radius: 999px;
-  color: #041119;
+  color: var(--text-on-surface);
   background: linear-gradient(135deg, #9de6d8 0%, #57d1be 45%, #7fd9ff 100%);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   cursor: pointer;
@@ -938,14 +1041,16 @@ textarea:focus-visible {
 .bottom-nav {
   position: fixed;
   left: 50%;
-  bottom: calc(1rem + env(safe-area-inset-bottom));
+  bottom: env(safe-area-inset-bottom);
   transform: translateX(-50%);
   width: min(calc(100% - 2rem), 28rem);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
-  padding: 0.45rem 0.45rem calc(0.45rem + env(safe-area-inset-bottom));
+  padding: 0.4rem;
   border-radius: 1.45rem;
+  background: var(--nav-bg);
+  border: 1px solid var(--line);
 }
 
 .bottom-nav-link {
@@ -955,7 +1060,7 @@ textarea:focus-visible {
   min-height: 3.35rem;
   padding: 0.45rem 0.35rem;
   border-radius: 1rem;
-  color: rgba(223, 236, 248, 0.78);
+  color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.72rem;
   font-weight: 700;
@@ -970,9 +1075,9 @@ textarea:focus-visible {
 }
 
 .bottom-nav-link.is-active {
-  color: #ecfbf6;
-  background: rgba(87, 209, 190, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(157, 230, 216, 0.12);
+  color: var(--text-primary);
+  background: var(--nav-active-bg);
+  box-shadow: inset 0 0 0 1px var(--nav-active-border);
 }
 
 .empty-state {
@@ -980,8 +1085,8 @@ textarea:focus-visible {
   gap: 0.8rem;
   padding: 1rem;
   border-radius: 1rem;
-  border: 1px dashed rgba(157, 230, 216, 0.22);
-  background: linear-gradient(180deg, rgba(87, 209, 190, 0.06), rgba(255, 255, 255, 0.03));
+  border: 1px dashed var(--empty-border);
+  background: var(--empty-bg);
 }
 
 .empty-state-title {
@@ -1042,7 +1147,7 @@ textarea:focus-visible {
   width: 100%;
   height: 0.9rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-soft);
   overflow: hidden;
 }
 
@@ -1061,8 +1166,8 @@ textarea:focus-visible {
 .leaderboard-card,
 .timeline-card {
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
 }
 
 .fund-status-card,
@@ -1111,13 +1216,13 @@ textarea:focus-visible {
 .leaderboard-card:focus-visible {
   transform: translateY(-2px);
   border-color: rgba(127, 217, 255, 0.22);
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--surface-hover);
 }
 
 .leaderboard-rank {
   font-size: 0.84rem;
   font-weight: 800;
-  color: rgba(223, 236, 248, 0.72);
+  color: var(--text-secondary);
 }
 
 .avatar-shell {
@@ -1131,7 +1236,7 @@ textarea:focus-visible {
   width: 2.8rem;
   height: 2.8rem;
   border-radius: 999px;
-  color: #041119;
+  color: var(--text-on-surface);
   font-weight: 800;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
@@ -1145,7 +1250,7 @@ textarea:focus-visible {
   width: 1rem;
   height: 1rem;
   border-radius: 999px;
-  color: #08111e;
+  color: var(--text-on-surface);
   background: #f6d68f;
 }
 
@@ -1170,13 +1275,13 @@ textarea:focus-visible {
   grid-template-columns: 1.2rem minmax(0, 1fr);
   gap: 0.9rem;
   padding: 0.1rem 0;
-  border-left: 4px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid var(--line);
   background: transparent;
   border-radius: 0;
 }
 
 .timeline-card .history-content {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-soft);
 }
 
 .timeline-card-paid {
@@ -1194,7 +1299,7 @@ textarea:focus-visible {
 
 @media (min-width: 640px) {
   .mobile-frame {
-    padding-top: 1.5rem;
+    padding-top: max(0.45rem, env(safe-area-inset-top));
   }
 
   .topbar {

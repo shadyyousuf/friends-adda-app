@@ -26,7 +26,7 @@ function HistoryPage() {
         : null
 
   if (isLoading) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading history" copy="Checking your session first." />
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   if (!user) {
@@ -34,7 +34,6 @@ function HistoryPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">History</p>
         <h2 className="panel-title">Login required</h2>
-        <p className="muted-copy">Sign in to review completed events.</p>
       </section>
     )
   }
@@ -68,14 +67,10 @@ function HistoryPage() {
         </div>
 
         {historyQuery.isPending && events.length === 0 ? (
-          <AnimatedContentLoader isVisible mode="panel" title="Loading completed events" copy="Building the event timeline from server data." />
+          <AnimatedContentLoader isVisible mode="panel" />
         ) : events.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">No completed events yet</h4>
-            <p className="muted-copy">
-              Finished events will appear here once captains or admins mark them
-              completed.
-            </p>
           </div>
         ) : (
           <div className="history-timeline">
@@ -92,9 +87,7 @@ function HistoryPage() {
                     <strong className="info-value">{event.title}</strong>
                     <span className="event-badge">{formatEventType(event.type)}</span>
                   </div>
-                  <p className="muted-copy">
-                    {event.description || 'No description saved for this event.'}
-                  </p>
+                  {event.description ? <p className="field-label">{event.description}</p> : null}
                   <div className="meta-row">
                     <span className="field-label">
                       Role: {formatEventRole(event.event_role)}

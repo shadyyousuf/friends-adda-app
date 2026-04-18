@@ -48,10 +48,6 @@ function SignupPage() {
       <div className="stack-sm">
         <p className="eyebrow">Signup</p>
         <h2 className="panel-title">Create your Friends Adda account</h2>
-        <p className="muted-copy">
-          New members still require global admin approval before they can use
-          the rest of the app.
-        </p>
       </div>
 
       <form className="stack-md" onSubmit={handleSubmit}>
@@ -102,10 +98,11 @@ function SignupPage() {
           {isSubmitting ? 'Creating account...' : 'Create account'}
         </button>
       </form>
-
-      <p className="muted-copy">
-        Already registered? <Link to="/login">Log in</Link>
-      </p>
+      <div className="actions-row">
+        <Link to="/login" className="secondary-button">
+          Log in
+        </Link>
+      </div>
     </section>
   )
 }

@@ -10,7 +10,7 @@ const items = [
 
 export default function BottomNav() {
   return (
-    <nav className="bottom-nav glass-card" aria-label="Primary">
+    <nav className="bottom-nav" aria-label="Primary">
       {items.map((item) => {
         const Icon = item.icon
 

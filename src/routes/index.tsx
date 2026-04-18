@@ -135,7 +135,7 @@ function HomePage() {
   }
 
   if (isLoading) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading your account" copy="Establishing your auth session and profile state." />
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   if (!user) {
@@ -143,13 +143,7 @@ function HomePage() {
       <div className="stack-lg">
         <section className="glass-card panel hero-panel">
           <p className="eyebrow">Group management</p>
-          <h2 className="hero-title">
-            Friends Adda keeps events, money, and roles in one place.
-          </h2>
-          <p className="muted-copy">
-            Sign in if you already have an account, or create one and wait for
-            admin approval before joining events.
-          </p>
+          <h2 className="hero-title">Friends Adda keeps events, money, and roles in one place.</h2>
           <div className="actions-row">
             <Link to="/signup" className="primary-button">
               Create account
@@ -158,17 +152,6 @@ function HomePage() {
               Log in
             </Link>
           </div>
-        </section>
-
-        <section className="glass-card panel stack-md">
-          <p className="eyebrow">Phase 5</p>
-          <h3 className="panel-title">Event workflows are ready after sign-in</h3>
-          <ul className="feature-list">
-            <li>Dashboard event lists</li>
-            <li>Public event discovery</li>
-            <li>Create-event drawer</li>
-            <li>Join flow for open public events</li>
-          </ul>
         </section>
       </div>
     )
@@ -179,7 +162,7 @@ function HomePage() {
   }
 
   if (dashboardQuery.isPending && dashboardData.myEvents.length === 0) {
-    return <AnimatedContentLoader isVisible mode="panel" title="Loading your events" copy="Fetching your subscribed events and the latest public events." />
+    return <AnimatedContentLoader isVisible mode="panel" />
   }
 
   return (
@@ -203,10 +186,6 @@ function HomePage() {
         {dashboardData.myEvents.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">No active events yet</h4>
-            <p className="muted-copy">
-              Create a new event to become the captain, or join an open public
-              event from the discover section below.
-            </p>
             <div className="actions-row">
               <button
                 type="button"
@@ -238,10 +217,6 @@ function HomePage() {
         {dashboardData.discoverEvents.length === 0 ? (
           <div className="empty-state">
             <h4 className="empty-state-title">Nothing open right now</h4>
-            <p className="muted-copy">
-              Public events will appear here once another approved member opens
-              one up for the group.
-            </p>
           </div>
         ) : (
           <div className="stack-sm">
@@ -267,7 +242,7 @@ function HomePage() {
             <div className="split-header">
               <div className="section-header-copy">
                 <p className="eyebrow">Create event</p>
-                <h3 className="section-title">Start a new group activity</h3>
+                <h3 className="section-title">New event</h3>
               </div>
               <button
                 type="button"
@@ -297,7 +272,6 @@ function HomePage() {
                   className="field-input field-textarea"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Short context for the group"
                 />
               </label>
 
@@ -397,9 +371,6 @@ function MyEventCard({ event }: { event: EventWithRole }) {
         <div className="split-header">
           <div className="stack-xs">
             <strong className="info-value">{event.title}</strong>
-            <span className="muted-copy">
-              {event.description || 'No description yet.'}
-            </span>
           </div>
           <div className="stack-xs event-badges">
             <span className="event-badge">{formatEventType(event.type)}</span>
@@ -434,13 +405,10 @@ function DiscoverEventCard({
 }) {
   return (
     <article className="event-card">
-      <div className="split-header">
-        <div className="stack-xs">
-          <strong className="info-value">{event.title}</strong>
-          <span className="muted-copy">
-            {event.description || 'No description yet.'}
-          </span>
-        </div>
+        <div className="split-header">
+          <div className="stack-xs">
+            <strong className="info-value">{event.title}</strong>
+          </div>
         <span className="event-badge">{formatEventType(event.type)}</span>
       </div>
       <div className="card-tag-row">
@@ -451,7 +419,6 @@ function DiscoverEventCard({
         </span>
       </div>
       <div className="actions-row">
-        <span className="inline-note">Open to approved members right now.</span>
         <button
           type="button"
           className="primary-button"
