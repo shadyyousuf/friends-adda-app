@@ -26,7 +26,8 @@ function HomePage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [eventType, setEventType] = useState<EventType>('fund_tracker')
+  const [eventType, setEventType] = useState<EventType>('general')
+  const [eventDate, setEventDate] = useState(() => getTodayDateInputValue())
   const [visibility, setVisibility] = useState<EventVisibility>('public')
   const [targetAmount, setTargetAmount] = useState('')
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
@@ -64,6 +65,17 @@ function HomePage() {
     }
   }, [dashboardQuery])
 
+  function openCreateDrawer() {
+    setTitle('')
+    setDescription('')
+    setEventType('general')
+    setEventDate(getTodayDateInputValue())
+    setVisibility('public')
+    setTargetAmount('')
+    setCreateError(null)
+    setIsCreateOpen(true)
+  }
+
   async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setCreateError(null)
@@ -87,12 +99,14 @@ function HomePage() {
         title,
         description,
         type: eventType,
+        eventDate,
         visibility,
         targetAmount: normalizedTargetAmount,
       })
       setTitle('')
       setDescription('')
-      setEventType('fund_tracker')
+      setEventType('general')
+      setEventDate(getTodayDateInputValue())
       setVisibility('public')
       setTargetAmount('')
       setIsCreateOpen(false)
@@ -197,7 +211,7 @@ function HomePage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => setIsCreateOpen(true)}
+                onClick={openCreateDrawer}
               >
                 Create your first event
               </button>
@@ -266,14 +280,14 @@ function HomePage() {
 
             <form className="stack-md" onSubmit={handleCreateEvent}>
               <label className="stack-xs">
-                <span className="field-label">Title</span>
+                <span className="field-label">Name</span>
                 <input
                   required
                   type="text"
                   className="field-input"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Friday cricket fund"
+                  placeholder="Friday cricket meetup"
                 />
               </label>
 
@@ -288,12 +302,24 @@ function HomePage() {
               </label>
 
               <label className="stack-xs">
+                <span className="field-label">Event date</span>
+                <input
+                  required
+                  type="date"
+                  className="field-input"
+                  value={eventDate}
+                  onChange={(event) => setEventDate(event.target.value)}
+                />
+              </label>
+
+              <label className="stack-xs">
                 <span className="field-label">Type</span>
                 <select
                   className="field-input"
                   value={eventType}
                   onChange={(event) => setEventType(event.target.value as EventType)}
                 >
+                  <option value="general">General</option>
                   <option value="fund_tracker">Fund tracker</option>
                   <option value="random_picker">Random picker</option>
                 </select>
@@ -354,7 +380,7 @@ function HomePage() {
       <button
         type="button"
         className="fab-button"
-        onClick={() => setIsCreateOpen(true)}
+        onClick={openCreateDrawer}
         aria-label="Create event"
         title="Create event"
       >
@@ -385,6 +411,9 @@ function MyEventCard({ event }: { event: EventWithRole }) {
         <div className="meta-row">
           <span className="field-label">Visibility: {event.visibility}</span>
           <span className="field-label">Status: {event.status}</span>
+          <span className="field-label">
+            Event date: {new Date(event.event_date).toLocaleDateString()}
+          </span>
           <span className="field-label">
             Created: {new Date(event.created_at).toLocaleDateString()}
           </span>
@@ -417,6 +446,9 @@ function DiscoverEventCard({
       <div className="card-tag-row">
         <span className="field-label">Visibility: public</span>
         <span className="field-label">Status: {event.status}</span>
+        <span className="field-label">
+          Event date: {new Date(event.event_date).toLocaleDateString()}
+        </span>
       </div>
       <div className="actions-row">
         <span className="inline-note">Open to approved members right now.</span>
@@ -434,7 +466,17 @@ function DiscoverEventCard({
 }
 
 function formatEventType(type: EventType) {
+  if (type === 'general') {
+    return 'General'
+  }
+
   return type === 'fund_tracker' ? 'Fund Tracker' : 'Random Picker'
+}
+
+function getTodayDateInputValue() {
+  const now = new Date()
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 10)
 }
 
 function formatEventRole(role: EventWithRole['event_role']) {

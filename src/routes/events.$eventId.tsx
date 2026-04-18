@@ -323,6 +323,14 @@ function EventDetailPage() {
         <div className="info-grid">
           <InfoItem label="Type" value={formatEventType(event?.type)} />
           <InfoItem label="Privacy" value={formatVisibility(event?.visibility)} />
+          <InfoItem
+            label="Event date"
+            value={
+              event?.event_date
+                ? new Date(event.event_date).toLocaleDateString()
+                : 'unknown'
+            }
+          />
           <InfoItem label="Status" value={event?.status ?? 'unknown'} />
           <InfoItem label="Members" value={String(detail.subscribers.length)} />
         </div>
@@ -1134,6 +1142,10 @@ function RandomPickerModule({
 }
 
 function formatEventType(type?: string) {
+  if (type === 'general') {
+    return 'General'
+  }
+
   if (type === 'random_picker') {
     return 'Random Picker'
   }

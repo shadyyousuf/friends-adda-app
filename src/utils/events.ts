@@ -17,6 +17,7 @@ type CreateEventInput = {
   title: string
   description: string
   type: EventType
+  eventDate: string
   visibility: EventVisibility
   targetAmount?: number | null
 }
@@ -86,6 +87,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
           title,
           description,
           type,
+          event_date,
           status,
           visibility,
           created_by,
@@ -144,6 +146,7 @@ export async function createEventWithCaptain({
   title,
   description,
   type,
+  eventDate,
   visibility,
   targetAmount,
 }: CreateEventInput) {
@@ -151,6 +154,7 @@ export async function createEventWithCaptain({
     p_title: title,
     p_description: description,
     p_type: type,
+    p_event_date: eventDate,
     p_visibility: visibility,
     p_target_amount: targetAmount ?? null,
   })
@@ -362,6 +366,7 @@ export async function loadCompletedEventsForCurrentUser() {
           title,
           description,
           type,
+          event_date,
           status,
           visibility,
           created_by,

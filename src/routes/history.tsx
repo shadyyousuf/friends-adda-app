@@ -103,6 +103,9 @@ function HistoryPage() {
                       Visibility: {event.visibility}
                     </span>
                     <span className="field-label">
+                      Event date: {new Date(event.event_date).toLocaleDateString()}
+                    </span>
+                    <span className="field-label">
                       Created: {new Date(event.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -117,6 +120,10 @@ function HistoryPage() {
 }
 
 function formatEventType(type: EventWithRole['type']) {
+  if (type === 'general') {
+    return 'General'
+  }
+
   return type === 'random_picker' ? 'Random Picker' : 'Fund Tracker'
 }
 

@@ -19,7 +19,8 @@ create table if not exists public.events (
   id uuid default uuid_generate_v4() primary key,
   title text not null,
   description text,
-  type text check (type in ('fund_tracker', 'random_picker')) not null,
+  type text check (type in ('general', 'fund_tracker', 'random_picker')) not null,
+  event_date date not null default current_date,
   status text check (status in ('open', 'active', 'completed')) default 'open',
   visibility text check (visibility in ('public', 'private')) default 'private',
   target_amount numeric,
@@ -49,6 +50,26 @@ create table if not exists public.event_funds (
 
 alter table public.events
   add column if not exists target_amount numeric;
+
+alter table public.events
+  add column if not exists event_date date;
+
+update public.events
+set event_date = coalesce(event_date, created_at::date)
+where event_date is null;
+
+alter table public.events
+  alter column event_date set default current_date;
+
+alter table public.events
+  alter column event_date set not null;
+
+alter table public.events
+  drop constraint if exists events_type_check;
+
+alter table public.events
+  add constraint events_type_check
+  check (type in ('general', 'fund_tracker', 'random_picker'));
 
 alter table public.event_funds
   add column if not exists month integer;
@@ -257,6 +278,7 @@ create or replace function public.create_event_with_captain(
   p_description text,
   p_type text,
   p_visibility text,
+  p_event_date date,
   p_target_amount numeric default null
 )
 returns public.events
@@ -285,7 +307,7 @@ begin
     raise exception 'Title is required';
   end if;
 
-  if p_type not in ('fund_tracker', 'random_picker') then
+  if p_type not in ('general', 'fund_tracker', 'random_picker') then
     raise exception 'Invalid event type';
   end if;
 
@@ -301,6 +323,7 @@ begin
     title,
     description,
     type,
+    event_date,
     visibility,
     target_amount,
     created_by
@@ -309,6 +332,7 @@ begin
     nullif(trim(p_title), ''),
     nullif(trim(p_description), ''),
     p_type,
+    p_event_date,
     p_visibility,
     p_target_amount,
     auth.uid()
@@ -752,7 +776,7 @@ create policy "Captains and Co-Captains can insert activities" on public.event_a
 grant execute on function public.update_own_profile(text, text) to authenticated;
 grant execute on function public.approve_user(uuid) to authenticated;
 grant execute on function public.promote_user_to_admin(uuid) to authenticated;
-grant execute on function public.create_event_with_captain(text, text, text, text, numeric) to authenticated;
+grant execute on function public.create_event_with_captain(text, text, text, text, date, numeric) to authenticated;
 grant execute on function public.join_public_event(uuid) to authenticated;
 grant execute on function public.promote_event_member_to_cocaptain(uuid, uuid) to authenticated;
 grant execute on function public.demote_event_member_to_member(uuid, uuid) to authenticated;
