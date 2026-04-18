@@ -225,7 +225,7 @@ function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="stack-sm">
+          <div className="event-card-carousel">
             {dashboardData.myEvents.map((event) => (
               <MyEventCard key={event.id} event={event} />
             ))}
@@ -247,7 +247,7 @@ function HomePage() {
             <h4 className="empty-state-title">Nothing open right now</h4>
           </div>
         ) : (
-          <div className="stack-sm">
+          <div className="event-card-carousel">
             {dashboardData.discoverEvents.map((event) => (
               <DiscoverEventCard
                 key={event.id}
@@ -388,27 +388,33 @@ function HomePage() {
 
 function MyEventCard({ event }: { event: EventWithRole }) {
   return (
-    <Link to="/events/$eventId" params={{ eventId: event.id }} className="event-card-link">
+    <Link
+      to="/events/$eventId"
+      params={{ eventId: event.id }}
+      className="event-card-link event-card-slide"
+    >
       <article className="event-card">
         <div className="split-header">
           <div className="stack-xs">
             <strong className="info-value">{event.title}</strong>
           </div>
           <div className="stack-xs event-badges">
-            <span className="event-badge">{formatEventType(event.type)}</span>
-            <span className="event-badge event-badge-strong">
-              {formatEventRole(event.event_role)}
+            <span className="event-badge event-badge-strong event-type-badge">
+            <span
+              className="event-type-icon"
+              aria-hidden="true"
+              aria-label={formatEventType(event.type)}
+              title={formatEventType(event.type)}
+            >
+              {getEventTypeIcon(event.type)}
+            </span>
             </span>
           </div>
         </div>
-        <div className="meta-row">
-          <span className="field-label">Visibility: {event.visibility}</span>
+        <div className="event-card-footer">
           <span className="field-label">Status: {event.status}</span>
           <span className="field-label">
-            Event date: {new Date(event.event_date).toLocaleDateString()}
-          </span>
-          <span className="field-label">
-            Created: {new Date(event.created_at).toLocaleDateString()}
+            Date: {formatDisplayDate(event.event_date, event.created_at)}
           </span>
         </div>
       </article>
@@ -426,18 +432,26 @@ function DiscoverEventCard({
   onJoin: () => void
 }) {
   return (
-    <article className="event-card">
+    <article className="event-card event-card-slide">
         <div className="split-header">
           <div className="stack-xs">
             <strong className="info-value">{event.title}</strong>
           </div>
-        <span className="event-badge">{formatEventType(event.type)}</span>
+          <span className="event-badge event-badge-strong event-type-badge">
+            <span
+              className="event-type-icon"
+              aria-hidden="true"
+              aria-label={formatEventType(event.type)}
+              title={formatEventType(event.type)}
+            >
+              {getEventTypeIcon(event.type)}
+            </span>
+          </span>
       </div>
-      <div className="card-tag-row">
-        <span className="field-label">Visibility: public</span>
+      <div className="event-card-footer">
         <span className="field-label">Status: {event.status}</span>
         <span className="field-label">
-          Event date: {new Date(event.event_date).toLocaleDateString()}
+          Date: {formatDisplayDate(event.event_date, event.created_at)}
         </span>
       </div>
       <div className="actions-row">
@@ -462,20 +476,39 @@ function formatEventType(type: EventType) {
   return type === 'fund_tracker' ? 'Fund Tracker' : 'Random Picker'
 }
 
+function getEventTypeIcon(type: EventType) {
+  if (type === 'general') {
+    return '🗓️'
+  }
+
+  return type === 'fund_tracker' ? '💸' : '🎲'
+}
+
+function formatDisplayDate(eventDate: string, createdAt: string) {
+  const eventDateValue = new Date(eventDate)
+  const createdDateValue = new Date(createdAt)
+  const hasEventDate = !Number.isNaN(eventDateValue.getTime())
+  const hasCreatedDate = !Number.isNaN(createdDateValue.getTime())
+
+  const selectedDate = hasEventDate
+    ? hasCreatedDate && eventDateValue > createdDateValue
+      ? eventDateValue
+      : hasCreatedDate
+        ? createdDateValue
+        : eventDateValue
+    : hasCreatedDate
+      ? createdDateValue
+      : null
+
+  if (!selectedDate) {
+    return '—'
+  }
+
+  return selectedDate.toLocaleDateString()
+}
+
 function getTodayDateInputValue() {
   const now = new Date()
   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
   return localDate.toISOString().slice(0, 10)
-}
-
-function formatEventRole(role: EventWithRole['event_role']) {
-  if (role === 'co-captain') {
-    return 'Co-Captain'
-  }
-
-  if (role === 'captain') {
-    return 'Captain'
-  }
-
-  return 'Member'
 }

@@ -292,6 +292,7 @@ function SettingsPage() {
                     profile={approvedProfile}
                     primaryActionLabel="Promote to admin"
                     onPrimaryAction={() => void handlePromote(approvedProfile.id)}
+                    asMemberDirectoryCard
                   />
                 ))}
               </div>
@@ -389,13 +390,53 @@ function UserAdminCard({
   onPrimaryAction,
   secondaryActionLabel,
   onSecondaryAction,
+  asMemberDirectoryCard,
 }: {
   profile: Profile
   primaryActionLabel: string
   onPrimaryAction: () => void
   secondaryActionLabel?: string
   onSecondaryAction?: () => void
+  asMemberDirectoryCard?: boolean
 }) {
+  if (asMemberDirectoryCard) {
+    return (
+      <article className="member-directory-card admin-member-directory-card">
+        <div className="stack-xs">
+          <strong className="info-value">
+            {profile.full_name || 'Unnamed user'}
+          </strong>
+          <span className="field-label">{profile.email}</span>
+        </div>
+        <div className="member-directory-meta">
+          <span className="event-badge event-badge-strong">
+            {profile.blood_group || 'Blood group not set'}
+          </span>
+          <span className="field-label">
+            {profile.role === 'admin' ? 'App Admin' : 'Member'}
+          </span>
+          <details className="admin-member-menu">
+            <summary
+              className="admin-member-menu-trigger"
+              aria-label={`Actions for ${profile.full_name || profile.email}`}
+            >
+              ⋮
+            </summary>
+            <div className="admin-member-menu-panel">
+              <button
+                type="button"
+                className="secondary-button admin-member-menu-button"
+                onClick={onPrimaryAction}
+              >
+                {primaryActionLabel}
+              </button>
+            </div>
+          </details>
+        </div>
+      </article>
+    )
+  }
+
   return (
     <article className="admin-user-card">
       <div className="stack-xs">
