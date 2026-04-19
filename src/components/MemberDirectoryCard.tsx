@@ -52,14 +52,14 @@ export function MemberDirectoryCard({
 
   return (
     <article className="member-directory-card">
-      <div className="member-row">
+      <div className="member-row member-directory-main">
         <MemberAvatar
           member={profile}
           highlight={highlight}
           avatarText={profile.blood_group?.trim() || null}
         />
         <div className="stack-xs">
-          <strong className="info-value">
+          <strong className="info-value member-directory-name">
             {profile.full_name || 'Unnamed member'}
           </strong>
           {detailLines.map((line, index) => (

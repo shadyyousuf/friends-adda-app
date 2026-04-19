@@ -16,7 +16,7 @@ import {
   periodKey,
   type FundPeriod,
 } from '../../utils/fund-tracker'
-import { formatMoney, MemberAvatar } from './EventTypeHelpers'
+import { formatMoney } from './EventTypeHelpers'
 import type { EventDetailData } from '../../utils/events'
 
 type FundTrackerEventContentProps = {
@@ -181,10 +181,11 @@ export function FundTrackerEventContent({
           <div className="stack-sm">
             {fundStatusItems.map((item) => (
               <article key={item.member.user_id} className="fund-status-card">
-                <div className="member-row">
-                  <MemberAvatar member={item.member} />
-                  <div className="stack-xs">
-                    <strong className="info-value">{getMemberName(item.member)}</strong>
+                <div className="fund-status-main">
+                  <div className="stack-xs fund-status-member">
+                    <strong className="info-value fund-status-member-name">
+                      {getMemberName(item.member)}
+                    </strong>
                     {item.status === 'paid' ? (
                       <div className="payment-state payment-state-paid">
                         <CheckCircle2 size={16} color="#22c55e" />

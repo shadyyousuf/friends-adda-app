@@ -971,6 +971,7 @@ textarea:focus-visible {
   position: relative;
   justify-self: end;
   width: fit-content;
+  flex-shrink: 0;
 }
 
 .admin-member-menu summary {
@@ -1260,10 +1261,33 @@ textarea:focus-visible {
 
 .member-directory-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: nowrap;
   justify-content: space-between;
   gap: 0.9rem;
   padding: 1rem;
+}
+
+.member-directory-main {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.member-directory-main > .stack-xs {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.member-directory-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .member-directory-card-button {
@@ -1278,16 +1302,27 @@ textarea:focus-visible {
 
 .member-directory-meta {
   display: grid;
+  width: auto;
+  min-width: max-content;
+  max-width: max-content;
   gap: 0.45rem;
   justify-items: end;
   text-align: right;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .member-directory-side-content {
   display: grid;
+  width: auto;
+  min-width: max-content;
+  max-width: max-content;
   gap: 0.35rem;
   justify-items: end;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .member-directory-leaderboard-meta {
@@ -1470,6 +1505,18 @@ textarea:focus-visible {
   gap: 0.65rem;
 }
 
+.fund-status-member {
+  min-width: 0;
+}
+
+.fund-status-member-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .fund-total-meta,
 .progress-meta {
   flex-wrap: wrap;
@@ -1511,14 +1558,37 @@ textarea:focus-visible {
 .fund-status-card,
 .leaderboard-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 0.9rem;
   padding: 1rem;
 }
 
-.fund-status-aside,
+.fund-status-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  width: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.fund-status-aside {
+  width: auto;
+  min-width: max-content;
+  max-width: max-content;
+  align-self: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .leaderboard-meta {
+  width: max-content;
+  min-width: max-content;
+  align-self: flex-start;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
@@ -1736,22 +1806,19 @@ textarea:focus-visible {
   }
 
   .member-card,
-  .member-directory-card,
-  .fund-status-card,
   .leaderboard-card {
     align-items: start;
     flex-direction: column;
   }
 
   .member-card-meta,
-  .member-directory-meta {
+  .leaderboard-meta {
     width: 100%;
     justify-items: start;
     justify-content: flex-start;
     text-align: left;
   }
 
-  .fund-status-aside,
   .leaderboard-meta,
   .period-controls,
   .progress-meta {
@@ -1769,9 +1836,14 @@ textarea:focus-visible {
 
   .member-row {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: flex-start;
     justify-content: flex-start;
+  }
+
+  .member-directory-main,
+  .fund-status-main {
+    width: auto;
   }
 
   .bottom-nav {
