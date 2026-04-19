@@ -734,6 +734,13 @@ textarea {
   box-shadow: 0 14px 32px rgba(87, 209, 190, 0.18);
 }
 
+.fund-status-action {
+  min-height: 2.15rem;
+  padding: 0.42rem 0.88rem;
+  border-radius: 0.8rem;
+  font-size: 0.84rem;
+}
+
 .ghost-button {
   border: 0;
   padding: 0;
@@ -1512,7 +1519,11 @@ textarea:focus-visible {
 }
 
 .payment-state-paid {
-  color: #dffaf4;
+  color: #22c55e;
+}
+
+.fund-status-paid-amount {
+  color: #22c55e;
 }
 
 .payment-state-pending {

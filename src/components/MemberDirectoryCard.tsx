@@ -47,7 +47,7 @@ export function MemberDirectoryCard({
   sideContent,
   highlight = false,
 }: MemberDirectoryCardProps) {
-  const appRoleLabel = roleLabel ?? (profile.role === 'admin' ? 'App Admin' : 'Member')
+  const appRoleLabel = roleLabel?.trim() ?? (profile.role === 'admin' ? 'App Admin' : 'Member')
   const canShowMenu = menuActions.length > 0
 
   return (
@@ -67,9 +67,7 @@ export function MemberDirectoryCard({
               {line}
             </span>
           ))}
-          <span className="member-directory-role-badge">
-            {appRoleLabel}
-          </span>
+          {appRoleLabel ? <span className="member-directory-role-badge">{appRoleLabel}</span> : null}
         </div>
       </div>
 

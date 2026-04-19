@@ -43,7 +43,6 @@ import {
   buildMemberTimeline,
   calculateMonthlyProgress,
   formatPeriodLabel,
-  MONTH_NAMES,
   getCurrentPeriod,
   getMemberName,
   getRecentPeriods,
@@ -235,7 +234,6 @@ function EventDetailPage() {
 
   const selectedPeriod = parsePeriodKey(selectedPeriodKey)
   const selectedPeriodLabel = formatPeriodLabel(selectedPeriod)
-  const selectedMonthLabel = MONTH_NAMES[selectedPeriod.month - 1]
   const fundPeriods = getRecentPeriods(12)
   const selectedPeriodIndex = fundPeriods.findIndex(
     (period) => periodKey(period) === selectedPeriodKey,
@@ -929,15 +927,15 @@ function EventDetailPage() {
                         id: entry.member.user_id,
                         full_name: getMemberName(entry.member),
                         email: entry.member.profiles.email,
-                        role: entry.member.profiles.role,
-                        blood_group: entry.member.profiles.blood_group,
-                      }}
-                      roleLabel={formatEventRole(entry.member.event_role)}
+                      role: entry.member.profiles.role,
+                      blood_group: entry.member.profiles.blood_group,
+                    }}
+                      roleLabel=""
                       detailLines={[`${entry.monthsPaid} months paid`]}
                       sideContent={
                         <div className="member-directory-leaderboard-meta">
                           <span className="member-directory-rank">
-                            #{index + 1}
+                            {formatEventRole(entry.member.event_role)} #{index + 1}
                           </span>
                           <strong className="info-value">
                             {formatMoney(entry.totalPaid)}
@@ -1183,10 +1181,6 @@ function EventDetailPage() {
                   {getMemberName(paymentMember)}
                 </strong>
                 <span className="field-label">{paymentMember.profiles.email}</span>
-                <div className="member-card-meta">
-                  <span className="event-badge">Month: {selectedMonthLabel}</span>
-                  <span className="event-badge">Year: {selectedPeriod.year}</span>
-                </div>
               </div>
             </div>
             <form className="stack-md" onSubmit={handlePaymentSubmit}>

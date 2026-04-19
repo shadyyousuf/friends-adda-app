@@ -52,6 +52,11 @@ export function FundTrackerEventContent({
   onPeriodChange,
   onOpenPaymentDrawer,
 }: FundTrackerEventContentProps) {
+  const formatAmount = (amount: number) =>
+    new Intl.NumberFormat('en-BD', {
+      maximumFractionDigits: 2,
+    }).format(amount)
+
   if (!event) {
     return null
   }
@@ -172,35 +177,31 @@ export function FundTrackerEventContent({
                   <MemberAvatar member={item.member} />
                   <div className="stack-xs">
                     <strong className="info-value">{getMemberName(item.member)}</strong>
-                    <div className="member-card-meta">
-                      <span className="event-badge event-badge-period">
-                        {selectedPeriodLabel}
-                      </span>
-                    </div>
-                    <span className="field-label">Status: {selectedPeriodLabel}</span>
+                    {item.status === 'paid' ? (
+                      <div className="payment-state payment-state-paid">
+                        <CheckCircle2 size={16} color="#22c55e" />
+                        <span className="fund-status-paid-amount">
+                          {formatAmount(Number(item.payment?.amount ?? 0))}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="payment-state payment-state-pending">
+                        <Clock3 size={16} />
+                        <span>Pending</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="fund-status-aside">
-                  {item.status === 'paid' ? (
-                    <div className="payment-state payment-state-paid">
-                      <CheckCircle2 size={16} />
-                      <span>{formatMoney(Number(item.payment?.amount ?? 0))}</span>
-                    </div>
-                  ) : (
-                    <div className="payment-state payment-state-pending">
-                      <Clock3 size={16} />
-                      <span>Pending</span>
-                    </div>
-                  )}
                   {canRunModules && item.status === 'pending' ? (
                     <button
                       type="button"
-                      className="primary-button"
+                      className="primary-button fund-status-action"
                       onClick={() => onOpenPaymentDrawer(item.member.user_id)}
                       disabled={activeAction === `payment:${item.member.user_id}`}
                     >
                       {monthlyDefaultAmount
-                        ? formatMoney(monthlyDefaultAmount)
+                        ? formatAmount(monthlyDefaultAmount)
                         : 'Set amount'}
                     </button>
                   ) : null}
