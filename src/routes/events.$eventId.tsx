@@ -55,9 +55,11 @@ import {
   eventDetailQueryOptions,
   eventKeys,
   deleteEvent,
+  extractRandomPickerWinnerId,
   type EventVisibility,
   promoteEventMemberToCoCaptain,
   removeEventMember,
+  updateRandomPickerWinnerAmount,
   spinRandomPicker,
   transferEventCaptain,
   updateEvent,
@@ -114,7 +116,7 @@ function getEventMenuItems(
         ? [
             {
               type: 'invite-friends',
-              label: 'Add member',
+              label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
           ]
@@ -136,7 +138,7 @@ function getEventMenuItems(
         ? [
             {
               type: 'invite-friends',
-              label: 'Add member',
+              label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
           ]
@@ -161,7 +163,7 @@ function getEventMenuItems(
         ? [
             {
               type: 'invite-friends',
-              label: 'Add member',
+              label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
           ]
@@ -225,6 +227,12 @@ function EventDetailPage() {
   const [editMonthlyDefaultAmount, setEditMonthlyDefaultAmount] = useState('')
   const [addMemberSearch, setAddMemberSearch] = useState('')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
+  const [editingRandomPickerWinner, setEditingRandomPickerWinner] = useState<{
+    activityId: string
+    winnerName: string
+    amount: number
+  } | null>(null)
+  const [randomPickerWinnerAmount, setRandomPickerWinnerAmount] = useState('')
   const touchStartXRef = useRef<number | null>(null)
 
   const detailQuery = useQuery({
@@ -269,6 +277,58 @@ function EventDetailPage() {
     profile?.role === 'admin' ||
     currentSubscriber?.event_role === 'captain' ||
     currentSubscriber?.event_role === 'co-captain'
+  const randomPickerWinnerIds = new Set(
+    detail.activities
+      .map((activity) => extractRandomPickerWinnerId(activity))
+      .filter((winnerId): winnerId is string => Boolean(winnerId)),
+  )
+  const randomPickerRemainingMembers = detail.subscribers.filter(
+    (subscriber) => !randomPickerWinnerIds.has(subscriber.user_id),
+  )
+  const randomPickerWinnersByLatest = new Map<
+    string,
+    {
+      activityId: string
+      winner: EventDetailData['subscribers'][number]
+      amount: number
+      createdAt: string
+    }
+  >()
+
+  for (const activity of detail.activities) {
+    const winnerId = extractRandomPickerWinnerId(activity)
+
+    if (!winnerId || randomPickerWinnersByLatest.has(winnerId)) {
+      continue
+    }
+
+    const winner = detail.subscribers.find(
+      (subscriber) => subscriber.user_id === winnerId,
+    )
+
+    if (!winner) {
+      continue
+    }
+
+    const payload = activity.payload
+    const amount =
+      payload && typeof payload === 'object' && 'amount' in payload
+        ? Number(payload.amount)
+        : 0
+
+    randomPickerWinnersByLatest.set(winnerId, {
+      activityId: activity.id,
+      winner,
+      amount: Number.isFinite(amount) ? amount : 0,
+      createdAt: activity.created_at,
+    })
+  }
+  const randomPickerWinners = Array.from(randomPickerWinnersByLatest.values())
+  const canSpinRandomPicker =
+    (currentSubscriber?.event_role === 'captain' ||
+      currentSubscriber?.event_role === 'co-captain') &&
+    randomPickerRemainingMembers.length > 0
+  const canEditRandomPickerWinnerAmount = canRunModules
   const canDeleteEvent = canEditEvent
   const fundStatusItems = buildFundStatusItems(
     detail.subscribers,
@@ -490,6 +550,54 @@ function EventDetailPage() {
       })
       setPaymentDrawerUserId(null)
       setPaymentAmount(defaultPaymentAmount)
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.detail(eventId),
+      })
+    })
+  }
+
+  function openRandomPickerWinnerAmountDrawer(
+    winner: {
+      activityId: string
+      winnerName: string
+      amount: number
+    },
+  ) {
+    setEditingRandomPickerWinner(winner)
+    setRandomPickerWinnerAmount(String(Math.round(winner.amount)))
+    setErrorMessage(null)
+  }
+
+  function closeRandomPickerWinnerAmountDrawer() {
+    setEditingRandomPickerWinner(null)
+    setRandomPickerWinnerAmount('')
+  }
+
+  async function handleRandomPickerWinnerAmountSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault()
+
+    if (!editingRandomPickerWinner) {
+      return
+    }
+
+    const amount = Number(randomPickerWinnerAmount)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrorMessage('Amount must be greater than zero.')
+      return
+    }
+
+    const normalizedAmount = Math.round(amount)
+
+    await handleModuleAction(`random-winner:${editingRandomPickerWinner.activityId}`, async () => {
+      await updateRandomPickerWinnerAmount(
+        editingRandomPickerWinner.activityId,
+        normalizedAmount,
+      )
+      setEditingRandomPickerWinner(null)
+      setRandomPickerWinnerAmount('')
       await queryClient.invalidateQueries({
         queryKey: eventKeys.detail(eventId),
       })
@@ -789,11 +897,13 @@ function EventDetailPage() {
 
       {event?.type === 'random_picker' ? (
         <RandomPickerEventContent
-          detail={detail}
           billAmount={billAmount}
           setBillAmount={setBillAmount}
-          canSpin={Boolean(canRunModules)}
+          canSpin={Boolean(canSpinRandomPicker)}
+          canEditWinnerAmount={canEditRandomPickerWinnerAmount}
+          winners={randomPickerWinners}
           activeAction={activeAction}
+          onEditWinnerAmount={openRandomPickerWinnerAmountDrawer}
           onSpin={(submitEvent) => void handleSpin(submitEvent)}
         />
       ) : null}
@@ -829,97 +939,97 @@ function EventDetailPage() {
             </div>
 
             <div className="stack-sm">
-              {detail.subscribers.map((subscriber) => {
-                const isCurrentUser = subscriber.user_id === user?.id
-                const canMakeCaptain =
-                  Boolean(canManageMembers) &&
-                  subscriber.event_role !== 'captain' &&
-                  !isCurrentUser
-                const canMakeCoCaptain =
-                  Boolean(canManageMembers) &&
-                  (subscriber.event_role === 'member' ||
-                    subscriber.event_role === 'co-captain') &&
-                  !isCurrentUser
-                const canMakeMember =
-                  Boolean(canManageMembers) &&
-                  subscriber.event_role === 'co-captain' &&
-                  (!isCurrentUser || profile?.role === 'admin')
-                const canRemove =
-                  Boolean(canManageMembers) &&
-                  subscriber.event_role !== 'captain' &&
-                  (!isCurrentUser || profile?.role === 'admin')
-                const menuActions: MemberDirectoryMenuAction[] = []
+                {detail.subscribers.map((subscriber) => {
+                  const isCurrentUser = subscriber.user_id === user?.id
+                  const canMakeCaptain =
+                    Boolean(canManageMembers) &&
+                    subscriber.event_role !== 'captain' &&
+                    !isCurrentUser
+                  const canMakeCoCaptain =
+                    Boolean(canManageMembers) &&
+                    (subscriber.event_role === 'member' ||
+                      subscriber.event_role === 'co-captain') &&
+                    !isCurrentUser
+                  const canMakeMember =
+                    Boolean(canManageMembers) &&
+                    subscriber.event_role === 'co-captain' &&
+                    (!isCurrentUser || profile?.role === 'admin')
+                  const canRemove =
+                    Boolean(canManageMembers) &&
+                    subscriber.event_role !== 'captain' &&
+                    (!isCurrentUser || profile?.role === 'admin')
+                  const menuActions: MemberDirectoryMenuAction[] = []
 
-                if (canMakeCaptain) {
-                  menuActions.push({
-                    id: `make-captain:${subscriber.user_id}`,
-                    label:
-                      activeAction === `make-captain:${subscriber.user_id}`
-                        ? 'Making captain...'
-                        : 'Make Captain',
-                    onClick: () => void handleAction('make-captain', subscriber.user_id),
-                  })
-                }
+                  if (canMakeCaptain) {
+                    menuActions.push({
+                      id: `make-captain:${subscriber.user_id}`,
+                      label:
+                        activeAction === `make-captain:${subscriber.user_id}`
+                          ? 'Making captain...'
+                          : 'Make Captain',
+                      onClick: () => void handleAction('make-captain', subscriber.user_id),
+                    })
+                  }
 
-                if (canMakeCoCaptain) {
-                  const isCoCaptainLimitReached =
-                    subscriber.event_role !== 'co-captain' && coCaptainCount >= 2
+                  if (canMakeCoCaptain) {
+                    const isCoCaptainLimitReached =
+                      subscriber.event_role !== 'co-captain' && coCaptainCount >= 2
 
-                  menuActions.push({
-                    id: `make-co-captain:${subscriber.user_id}`,
-                    label:
-                      activeAction === `make-co-captain:${subscriber.user_id}`
-                        ? 'Promoting...'
-                        : subscriber.event_role === 'co-captain'
-                          ? 'Already co-captain'
-                          : isCoCaptainLimitReached
-                            ? 'Co-captain limit reached'
-                            : 'Make Co-captain',
-                    disabled:
-                      subscriber.event_role === 'co-captain' ||
-                      isCoCaptainLimitReached,
-                    onClick: () =>
-                      void handleAction('make-co-captain', subscriber.user_id),
-                  })
-                }
+                    menuActions.push({
+                      id: `make-co-captain:${subscriber.user_id}`,
+                      label:
+                        activeAction === `make-co-captain:${subscriber.user_id}`
+                          ? 'Promoting...'
+                          : subscriber.event_role === 'co-captain'
+                            ? 'Already co-captain'
+                            : isCoCaptainLimitReached
+                              ? 'Co-captain limit reached'
+                              : 'Make Co-captain',
+                      disabled:
+                        subscriber.event_role === 'co-captain' ||
+                        isCoCaptainLimitReached,
+                      onClick: () =>
+                        void handleAction('make-co-captain', subscriber.user_id),
+                    })
+                  }
 
-                if (canMakeMember) {
-                  menuActions.push({
-                    id: `make-member:${subscriber.user_id}`,
-                    label:
-                      activeAction === `make-member:${subscriber.user_id}`
-                        ? 'Updating...'
-                        : 'Make Member',
-                    onClick: () => void handleAction('make-member', subscriber.user_id),
-                  })
-                }
+                  if (canMakeMember) {
+                    menuActions.push({
+                      id: `make-member:${subscriber.user_id}`,
+                      label:
+                        activeAction === `make-member:${subscriber.user_id}`
+                          ? 'Updating...'
+                          : 'Make Member',
+                      onClick: () => void handleAction('make-member', subscriber.user_id),
+                    })
+                  }
 
-                if (canRemove) {
-                  menuActions.push({
-                    id: `remove:${subscriber.user_id}`,
-                    label: 'Remove',
-                    onClick: () => void handleAction('remove', subscriber.user_id),
-                    isDanger: true,
-                  })
-                }
+                  if (canRemove) {
+                    menuActions.push({
+                      id: `remove:${subscriber.user_id}`,
+                      label: 'Remove',
+                      onClick: () => void handleAction('remove', subscriber.user_id),
+                      isDanger: true,
+                    })
+                  }
 
-                return (
-                  <MemberDirectoryCard
-                    key={subscriber.user_id}
-                    profile={{
-                      id: subscriber.user_id,
-                      full_name: getMemberName(subscriber),
-                      email: subscriber.profiles.email,
-                      role: subscriber.profiles.role,
-                      blood_group: subscriber.profiles.blood_group,
-                    }}
-                    roleLabel={formatEventRole(subscriber.event_role)}
-                    detailLines={[]}
-                    menuActions={menuActions}
-                    activeAction={activeAction}
-                  />
-                )
-              })}
+                  return (
+                    <MemberDirectoryCard
+                      key={subscriber.user_id}
+                      profile={{
+                        id: subscriber.user_id,
+                        full_name: getMemberName(subscriber),
+                        email: subscriber.profiles.email,
+                        role: subscriber.profiles.role,
+                        blood_group: subscriber.profiles.blood_group,
+                      }}
+                      roleLabel={formatEventRole(subscriber.event_role)}
+                      detailLines={[]}
+                      menuActions={menuActions}
+                      activeAction={activeAction}
+                    />
+                  )
+                })}
             </div>
           </div>
         </section>
@@ -999,88 +1109,89 @@ function EventDetailPage() {
             <div className="drawer-handle" aria-hidden="true" />
             <div className="section-header-copy">
               <p className="eyebrow">Event members</p>
-              <h3 className="section-title">Add member</h3>
+              <h3 className="section-title">Add Friend</h3>
             </div>
 
-            <div className="add-members-toolbar">
-              <label className="stack-xs add-members-search">
-                <span className="field-label">Search member</span>
-                <input
-                  type="text"
-                  className="field-input"
-                  value={addMemberSearch}
-                  onChange={(event) => setAddMemberSearch(event.target.value)}
-                  placeholder="Search by name or email"
-                />
-              </label>
-              <div className="add-members-toolbar-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => {
-                    closePanel()
-                  }}
-                  disabled={activeAction === 'add-members'}
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={
-                    selectedMemberIds.length === 0 ||
-                    activeAction === 'add-members'
-                  }
-                  onClick={() => void handleAddMembers()}
-                >
-                  {activeAction === 'add-members'
+            <div className="add-members-drawer-content">
+              {filteredAddMemberCandidates.length === 0 ? (
+                <div className="empty-state">
+                  <h4 className="empty-state-title">
+                    {addMemberSearchTerm ? 'No matching members' : 'No new members to add'}
+                  </h4>
+                </div>
+              ) : (
+                <div className="add-members-list">
+                  {filteredAddMemberCandidates.map((member) => {
+                    const checkboxId = `add-member-${member.id}`
+                    const isChecked = selectedMemberIds.includes(member.id)
+
+                    return (
+                      <label
+                        key={member.id}
+                        htmlFor={checkboxId}
+                        className={`add-member-item${isChecked ? ' is-selected' : ''}`}
+                      >
+                        <MemberAvatar
+                          member={member}
+                          avatarText={member.blood_group?.trim() || null}
+                        />
+                        <div className="stack-xs add-member-meta">
+                          <strong className="info-value">
+                            {member.full_name || 'Unnamed member'}
+                          </strong>
+                          <span className="member-directory-role-badge">Member</span>
+                        </div>
+                        <input
+                          id={checkboxId}
+                          type="checkbox"
+                          className="add-member-checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleAddMemberSelection(member.id)}
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="add-members-toolbar">
+                <label className="add-members-search">
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={addMemberSearch}
+                    onChange={(event) => setAddMemberSearch(event.target.value)}
+                    placeholder="Search by name or email"
+                    aria-label="Search members"
+                  />
+                </label>
+                <div className="add-members-toolbar-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={
+                      selectedMemberIds.length === 0 ||
+                      activeAction === 'add-members'
+                    }
+                    onClick={() => void handleAddMembers()}
+                  >
+                    {activeAction === 'add-members'
                     ? 'Adding...'
-                    : `Add (${selectedMemberIds.length})`}
-                </button>
+                      : `Add Friend (${selectedMemberIds.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      closePanel()
+                    }}
+                    disabled={activeAction === 'add-members'}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
-
-            {filteredAddMemberCandidates.length === 0 ? (
-              <div className="empty-state">
-                <h4 className="empty-state-title">
-                  {addMemberSearchTerm ? 'No matching members' : 'No new members to add'}
-                </h4>
-              </div>
-            ) : (
-              <div className="add-members-list">
-                {filteredAddMemberCandidates.map((member) => {
-                  const checkboxId = `add-member-${member.id}`
-                  const isChecked = selectedMemberIds.includes(member.id)
-
-                  return (
-                    <label
-                      key={member.id}
-                      htmlFor={checkboxId}
-                      className={`add-member-item${isChecked ? ' is-selected' : ''}`}
-                    >
-                      <input
-                        id={checkboxId}
-                        type="checkbox"
-                        className="add-member-checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleAddMemberSelection(member.id)}
-                      />
-                      <MemberAvatar
-                        member={member}
-                        avatarText={member.blood_group?.trim() || null}
-                      />
-                      <div className="stack-xs add-member-meta">
-                        <strong className="info-value">
-                          {member.full_name || 'Unnamed member'}
-                        </strong>
-                        <span className="field-label">{member.email}</span>
-                        <span className="member-directory-role-badge">Member</span>
-                      </div>
-                    </label>
-                  )
-                })}
-              </div>
-            )}
           </div>
         </section>
       ) : null}
@@ -1351,6 +1462,71 @@ function EventDetailPage() {
         </section>
       ) : null}
 
+      {editingRandomPickerWinner ? (
+        <section
+          className="drawer-overlay"
+          onClick={() => closeRandomPickerWinnerAmountDrawer()}
+        >
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="split-header">
+              <div className="section-header-copy">
+                <p className="eyebrow">Random picker</p>
+                <h3 className="section-title">Edit winner amount</h3>
+              </div>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => closeRandomPickerWinnerAmountDrawer()}
+              >
+                Close
+              </button>
+            </div>
+            <p className="field-label">{editingRandomPickerWinner.winnerName}</p>
+            <form className="stack-md" onSubmit={handleRandomPickerWinnerAmountSubmit}>
+              <label className="stack-xs">
+                <span className="field-label">Amount</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  className="field-input"
+                  value={randomPickerWinnerAmount}
+                  onChange={(event) =>
+                    setRandomPickerWinnerAmount(event.target.value)
+                  }
+                />
+              </label>
+              <div className="actions-row">
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={
+                    activeAction ===
+                    `random-winner:${editingRandomPickerWinner.activityId}`
+                  }
+                >
+                  {activeAction ===
+                  `random-winner:${editingRandomPickerWinner.activityId}`
+                    ? 'Updating...'
+                    : 'Update'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => closeRandomPickerWinnerAmountDrawer()}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
       {historyUserId && selectedHistoryMember ? (
         <section className="drawer-overlay" onClick={() => setHistoryUserId(null)}>
           <div
@@ -1508,8 +1684,29 @@ function EventDetailPage() {
       return
     }
 
+    if (randomPickerRemainingMembers.length === 0) {
+      setErrorMessage('No eligible members left to spin.')
+      return
+    }
+
     await handleModuleAction('spin', async () => {
-      await spinRandomPicker(eventId, amount)
+      const maxAttempts = Math.max(detail.subscribers.length * 12, 24)
+      let validSpinPicked = false
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const activity = await spinRandomPicker(eventId, amount)
+        const pickedWinnerId = extractRandomPickerWinnerId(activity)
+
+        if (pickedWinnerId && !randomPickerWinnerIds.has(pickedWinnerId)) {
+          validSpinPicked = true
+          break
+        }
+      }
+
+      if (!validSpinPicked) {
+        throw new Error('Could not pick a new winner. Please try again.')
+      }
+
       setBillAmount('')
       await queryClient.invalidateQueries({
         queryKey: eventKeys.detail(eventId),

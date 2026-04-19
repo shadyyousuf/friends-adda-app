@@ -450,6 +450,56 @@ export async function spinRandomPicker(eventId: string, amount: number) {
   return data
 }
 
+export async function updateRandomPickerWinnerAmount(activityId: string, amount: number) {
+  const { data: activity, error: fetchError } = await supabase
+    .from('event_activities')
+    .select('payload')
+    .eq('id', activityId)
+    .single()
+
+  if (fetchError) {
+    throw fetchError
+  }
+
+  const payload =
+    activity?.payload && typeof activity.payload === 'object'
+      ? { ...activity.payload }
+      : {}
+
+  const nextPayload = {
+    ...payload,
+    amount,
+  }
+
+  const { error } = await supabase
+    .from('event_activities')
+    .update({
+      payload: nextPayload,
+      created_at: new Date().toISOString(),
+    })
+    .eq('id', activityId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export function extractRandomPickerWinnerId(activity: ActivityRow): string | null {
+  const payload = activity.payload
+
+  if (!payload || typeof payload !== 'object' || !('winner' in payload)) {
+    return null
+  }
+
+  const winner = payload.winner
+
+  if (typeof winner !== 'string' || winner.trim() === '') {
+    return null
+  }
+
+  return winner
+}
+
 export async function loadCompletedEventsForCurrentUser() {
   const {
     data: { user },

@@ -31,10 +31,12 @@ type MemberDirectoryCardProps = {
   roleLabel?: string
   detailLines?: ReactNode[]
   sideContent?: ReactNode
+  sideContentClassName?: string
   menuActions?: MemberDirectoryMenuAction[]
   primaryAction?: MemberDirectoryPrimaryAction
   activeAction?: string | null
   highlight?: boolean
+  metaClassName?: string
 }
 
 export function MemberDirectoryCard({
@@ -45,7 +47,9 @@ export function MemberDirectoryCard({
   roleLabel,
   detailLines = [],
   sideContent,
+  sideContentClassName,
   highlight = false,
+  metaClassName,
 }: MemberDirectoryCardProps) {
   const appRoleLabel = roleLabel?.trim() ?? (profile.role === 'admin' ? 'App Admin' : 'Member')
   const canShowMenu = menuActions.length > 0
@@ -134,7 +138,9 @@ export function MemberDirectoryCard({
         </div>
       </div>
 
-      <div className="member-directory-meta">
+      <div
+        className={`member-directory-meta${metaClassName ? ` ${metaClassName}` : ''}`}
+      >
         {sideContent ? <div className="member-directory-side-content">{sideContent}</div> : null}
         {canShowMenu || primaryAction ? (
           <details

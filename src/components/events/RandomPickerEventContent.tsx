@@ -1,24 +1,82 @@
-import { formatMoney } from './EventTypeHelpers'
-import type { EventDetailData } from '../../utils/events'
+import { MemberDirectoryCard } from '../MemberDirectoryCard'
 import type { FormEvent } from 'react'
 
 type RandomPickerEventContentProps = {
-  detail: EventDetailData
   billAmount: string
   setBillAmount: (value: string) => void
   canSpin: boolean
+  canEditWinnerAmount?: boolean
+  winners: Array<{
+    activityId: string
+    winner: {
+      user_id: string
+      profiles: {
+        full_name: string | null
+        email: string
+        role: string
+        blood_group: string | null
+      }
+    }
+    amount: number
+    createdAt: string
+  }>
   activeAction: string | null
   onSpin: (event: FormEvent<HTMLFormElement>) => void
+  onEditWinnerAmount?: (winner: {
+    activityId: string
+    winnerName: string
+    amount: number
+  }) => void
+}
+
+function formatWinnerAmount(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0'
+  }
+
+  return Math.round(value).toLocaleString('en-US')
+}
+
+function formatWinnerDateTime(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown'
+  }
+
+  const dateText = date.toLocaleDateString()
+  const timeText = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  return `${dateText} ${timeText}`
 }
 
 export function RandomPickerEventContent({
-  detail,
   billAmount,
   setBillAmount,
   canSpin,
+  canEditWinnerAmount = false,
+  winners,
   activeAction,
   onSpin,
+  onEditWinnerAmount,
 }: RandomPickerEventContentProps) {
+  const handleEditAmount = (
+    winner: RandomPickerEventContentProps['winners'][number],
+) => {
+    if (!canEditWinnerAmount || !onEditWinnerAmount) {
+      return
+    }
+
+    onEditWinnerAmount({
+      activityId: winner.activityId,
+      winnerName: winner.winner.profiles.full_name || 'Unknown member',
+      amount: winner.amount,
+    })
+  }
+
   return (
     <section className="glass-card panel stack-md">
       <div className="section-header-copy">
@@ -49,42 +107,49 @@ export function RandomPickerEventContent({
       </form>
 
       <div className="stack-sm">
-        {detail.activities.length === 0 ? (
+        <div className="section-header-copy">
+          <p className="eyebrow">Winners</p>
+          <h3 className="section-title">Winners</h3>
+        </div>
+        {winners.length === 0 ? (
           <div className="empty-state">
-            <h4 className="empty-state-title">No random picks yet</h4>
+            <h4 className="empty-state-title">No winners yet</h4>
           </div>
         ) : (
-          detail.activities.map((activity) => {
-            const winnerId =
-              activity.payload &&
-              typeof activity.payload === 'object' &&
-              'winner' in activity.payload
-                ? String(activity.payload.winner)
-                : null
-            const amount =
-              activity.payload &&
-              typeof activity.payload === 'object' &&
-              'amount' in activity.payload
-                ? Number(activity.payload.amount)
-                : 0
-            const winner = detail.subscribers.find(
-              (subscriber) => subscriber.user_id === winnerId,
-            )
-
-            return (
-              <article key={activity.id} className="event-card">
-                <div className="split-header">
-                  <strong className="info-value">
-                    {winner?.profiles.full_name || 'Unknown member'}
-                  </strong>
-                  <span className="event-badge">{formatMoney(amount)}</span>
-                </div>
-                <span className="field-label">
-                  {new Date(activity.created_at).toLocaleString()}
-                </span>
-              </article>
-            )
-          })
+          winners.map((winner) => (
+            <MemberDirectoryCard
+              key={winner.winner.user_id}
+              profile={{
+                id: winner.winner.user_id,
+                full_name: winner.winner.profiles.full_name,
+                email: winner.winner.profiles.email,
+                role: winner.winner.profiles.role,
+                blood_group: winner.winner.profiles.blood_group,
+              }}
+              roleLabel=""
+              detailLines={[
+                formatWinnerDateTime(winner.createdAt),
+              ]}
+              metaClassName="member-directory-meta-random-picker-winner"
+              sideContent={
+                canEditWinnerAmount ? (
+                  <button
+                    type="button"
+                    className="primary-button random-picker-winner-amount-button"
+                    onClick={() => handleEditAmount(winner)}
+                    disabled={activeAction === `random-winner:${winner.activityId}`}
+                    aria-label={`Edit amount for ${winner.winner.profiles.full_name || 'winner'}`}
+                  >
+                    {formatWinnerAmount(winner.amount)}
+                  </button>
+                ) : (
+                  <span className="info-value">
+                    {formatWinnerAmount(winner.amount)}
+                  </span>
+                )
+              }
+            />
+          ))
         )}
       </div>
     </section>

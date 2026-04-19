@@ -1110,10 +1110,17 @@ textarea:focus-visible {
 
 .add-members-toolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 0.4rem;
+}
+
+.add-members-drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .add-members-search {
@@ -1122,7 +1129,9 @@ textarea:focus-visible {
 }
 
 .add-members-toolbar-actions {
-  display: inline-flex;
+  display: flex;
+  flex: 0 0 auto;
+  margin-left: auto;
   flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
@@ -1140,13 +1149,14 @@ textarea:focus-visible {
 .add-member-item {
   display: flex;
   gap: 0.65rem;
-  align-items: flex-start;
+  align-items: center;
   padding: 0.7rem 0.75rem;
   border-radius: 0.9rem;
   border: 1px solid var(--line);
   background: var(--surface);
   cursor: pointer;
   user-select: none;
+  justify-content: flex-start;
 }
 
 .add-member-item.is-selected {
@@ -1157,8 +1167,9 @@ textarea:focus-visible {
 .add-member-checkbox {
   width: 1.15rem;
   height: 1.15rem;
-  margin-top: 0.2rem;
+  margin-top: 0;
   accent-color: #57d1be;
+  margin-left: auto;
 }
 
 .add-member-meta {
@@ -1379,6 +1390,15 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
+.member-directory-meta-random-picker-winner {
+  align-self: center;
+}
+
+.member-directory-meta-random-picker-winner .member-directory-side-content {
+  display: flex;
+  align-items: center;
+}
+
 .member-directory-side-content {
   display: grid;
   width: auto;
@@ -1388,6 +1408,15 @@ textarea:focus-visible {
   justify-items: end;
   text-align: right;
   flex-shrink: 0;
+}
+
+.random-picker-winner-amount-button {
+  min-height: 2.4rem;
+  min-width: 5rem;
+  padding-inline: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .member-directory-leaderboard-meta {
