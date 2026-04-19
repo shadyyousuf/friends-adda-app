@@ -88,14 +88,14 @@ export function FundTrackerEventContent({
           <div className="fund-total-meta">
             <span className="event-badge">
               <Users size={14} />
-              {detail.subscribers.length} members
+              {detail.subscribers.length} 
             </span>
             <span className="event-badge">
               <Target size={14} />
               {event.target_amount ? formatMoney(event.target_amount) : 'No target set'}
             </span>
             <span className="event-badge">
-              Monthly default
+              Monthly
               {monthlyDefaultAmount ? ` ${formatMoney(monthlyDefaultAmount)}` : ' not set'}
             </span>
           </div>
