@@ -66,7 +66,7 @@ import {
   type EventDetailData,
   upsertEventFundPayment,
 } from '../utils/events'
-import { approvedMemberProfilesQueryOptions } from '../utils/profile'
+import { approvedProfilesQueryOptions } from '../utils/profile'
 
 export const Route = createFileRoute('/events/$eventId')({
   component: EventDetailPage,
@@ -239,8 +239,8 @@ function EventDetailPage() {
     ...eventDetailQueryOptions(eventId),
     enabled: Boolean(user && profile?.is_approved),
   })
-  const approvedMemberProfilesQuery = useQuery({
-    ...approvedMemberProfilesQueryOptions(),
+  const approvedProfilesQuery = useQuery({
+    ...approvedProfilesQueryOptions(),
     enabled: Boolean(user && profile?.is_approved),
   })
 
@@ -367,7 +367,7 @@ function EventDetailPage() {
   const monthlyDefaultAmount = getMonthlyDefaultAmount(event)
   const defaultPaymentAmount = monthlyDefaultAmount !== null ? String(monthlyDefaultAmount) : ''
   const paymentMinAmount = monthlyDefaultAmount ?? 0.01
-  const allApprovedMembers = approvedMemberProfilesQuery.data ?? []
+  const allApprovedMembers = approvedProfilesQuery.data ?? []
   const subscriberIds = new Set(detail.subscribers.map((subscriber) => subscriber.user_id))
   const addMemberCandidates = allApprovedMembers.filter(
     (member) => !subscriberIds.has(member.id),
@@ -1135,11 +1135,13 @@ function EventDetailPage() {
                           member={member}
                           avatarText={member.blood_group?.trim() || null}
                         />
-                        <div className="stack-xs add-member-meta">
+                      <div className="stack-xs add-member-meta">
                           <strong className="info-value">
                             {member.full_name || 'Unnamed member'}
                           </strong>
-                          <span className="member-directory-role-badge">Member</span>
+                          <span className="member-directory-role-badge">
+                            {member.role === 'admin' ? 'App Admin' : 'Member'}
+                          </span>
                         </div>
                         <input
                           id={checkboxId}
