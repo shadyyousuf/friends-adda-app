@@ -23,6 +23,10 @@ import { FundTrackerEventContent } from '../components/events/FundTrackerEventCo
 import { GeneralEventContent } from '../components/events/GeneralEventContent'
 import { RandomPickerEventContent } from '../components/events/RandomPickerEventContent'
 import {
+  MemberDirectoryCard,
+  type MemberDirectoryMenuAction,
+} from '../components/MemberDirectoryCard'
+import {
   ContributionTimeline,
   formatEventRole,
   formatEventType,
@@ -59,7 +63,6 @@ import {
   transferEventCaptain,
   updateEvent,
   type EventDetailData,
-  type EventSubscriberWithProfile,
   upsertEventFundPayment,
 } from '../utils/events'
 
@@ -790,27 +793,104 @@ function EventDetailPage() {
             </div>
 
             <div className="stack-sm">
-              {detail.subscribers.map((subscriber) => (
-                <EventMemberCard
-                  key={subscriber.user_id}
-                  subscriber={subscriber}
-                  canManageMembers={Boolean(canManageMembers)}
-                  isAdmin={profile?.role === 'admin'}
-                  isCurrentUser={subscriber.user_id === user.id}
-                  activeAction={activeAction}
-                  coCaptainCount={coCaptainCount}
-                  onMakeCaptain={() =>
-                    void handleAction('make-captain', subscriber.user_id)
-                  }
-                  onMakeCoCaptain={() =>
-                    void handleAction('make-co-captain', subscriber.user_id)
-                  }
-                  onMakeMember={() =>
-                    void handleAction('make-member', subscriber.user_id)
-                  }
-                  onRemove={() => void handleAction('remove', subscriber.user_id)}
-                />
-              ))}
+              {detail.subscribers.map((subscriber) => {
+                const isCurrentUser = subscriber.user_id === user?.id
+                const canMakeCaptain =
+                  Boolean(canManageMembers) &&
+                  subscriber.event_role !== 'captain' &&
+                  !isCurrentUser
+                const canMakeCoCaptain =
+                  Boolean(canManageMembers) &&
+                  (subscriber.event_role === 'member' ||
+                    subscriber.event_role === 'co-captain') &&
+                  !isCurrentUser
+                const canMakeMember =
+                  Boolean(canManageMembers) &&
+                  subscriber.event_role === 'co-captain' &&
+                  (!isCurrentUser || profile?.role === 'admin')
+                const canRemove =
+                  Boolean(canManageMembers) &&
+                  subscriber.event_role !== 'captain' &&
+                  (!isCurrentUser || profile?.role === 'admin')
+                const menuActions: MemberDirectoryMenuAction[] = []
+
+                if (canMakeCaptain) {
+                  menuActions.push({
+                    id: `make-captain:${subscriber.user_id}`,
+                    label:
+                      activeAction === `make-captain:${subscriber.user_id}`
+                        ? 'Making captain...'
+                        : 'Make Captain',
+                    onClick: () => void handleAction('make-captain', subscriber.user_id),
+                  })
+                }
+
+                if (canMakeCoCaptain) {
+                  const isCoCaptainLimitReached =
+                    subscriber.event_role !== 'co-captain' && coCaptainCount >= 2
+
+                  menuActions.push({
+                    id: `make-co-captain:${subscriber.user_id}`,
+                    label:
+                      activeAction === `make-co-captain:${subscriber.user_id}`
+                        ? 'Promoting...'
+                        : subscriber.event_role === 'co-captain'
+                          ? 'Already co-captain'
+                          : isCoCaptainLimitReached
+                            ? 'Co-captain limit reached'
+                            : 'Make Co-captain',
+                    disabled:
+                      subscriber.event_role === 'co-captain' ||
+                      isCoCaptainLimitReached,
+                    onClick: () =>
+                      void handleAction('make-co-captain', subscriber.user_id),
+                  })
+                }
+
+                if (canMakeMember) {
+                  menuActions.push({
+                    id: `make-member:${subscriber.user_id}`,
+                    label:
+                      activeAction === `make-member:${subscriber.user_id}`
+                        ? 'Updating...'
+                        : 'Make Member',
+                    onClick: () => void handleAction('make-member', subscriber.user_id),
+                  })
+                }
+
+                if (canRemove) {
+                  menuActions.push({
+                    id: `remove:${subscriber.user_id}`,
+                    label: 'Remove',
+                    onClick: () => void handleAction('remove', subscriber.user_id),
+                    isDanger: true,
+                  })
+                }
+
+                return (
+                  <MemberDirectoryCard
+                    key={subscriber.user_id}
+                    profile={{
+                      id: subscriber.user_id,
+                      full_name: getMemberName(subscriber),
+                      email: subscriber.profiles.email,
+                      role: subscriber.profiles.role,
+                      blood_group: subscriber.profiles.blood_group,
+                    }}
+                    highlight={
+                      subscriber.event_role === 'captain' ||
+                      subscriber.event_role === 'co-captain'
+                    }
+                    detailLines={[
+                      subscriber.profiles.email,
+                      `Blood group: ${subscriber.profiles.blood_group || 'Not set'}`,
+                      ...(isCurrentUser ? ['You'] : []),
+                    ]}
+                    menuActions={menuActions}
+                    activeAction={activeAction}
+                  />
+                )
+              })}
             </div>
           </div>
         </section>
@@ -848,29 +928,31 @@ function EventDetailPage() {
                   <button
                     key={entry.member.user_id}
                     type="button"
-                    className="leaderboard-card"
+                    className="member-directory-card-button"
                     onClick={() => setHistoryUserId(entry.member.user_id)}
                   >
-                    <div className="member-row">
-                      <MemberAvatar
-                        member={entry.member}
-                        highlight={index === 0}
-                      />
-                      <div className="stack-xs">
-                        <strong className="info-value">
-                          {getMemberName(entry.member)}
-                        </strong>
-                        <span className="field-label">
-                          {entry.monthsPaid} months paid
-                        </span>
-                      </div>
-                    </div>
-                    <div className="leaderboard-meta">
-                      <span className="leaderboard-rank">#{index + 1}</span>
-                      <strong className="info-value">
-                        {formatMoney(entry.totalPaid)}
-                      </strong>
-                    </div>
+                    <MemberDirectoryCard
+                      profile={{
+                        id: entry.member.user_id,
+                        full_name: getMemberName(entry.member),
+                        email: entry.member.profiles.email,
+                        role: entry.member.profiles.role,
+                        blood_group: entry.member.profiles.blood_group,
+                      }}
+                      roleLabel={formatEventRole(entry.member.event_role)}
+                      detailLines={[`${entry.monthsPaid} months paid`]}
+                      sideContent={
+                        <div className="member-directory-leaderboard-meta">
+                          <span className="member-directory-rank">
+                            #{index + 1}
+                          </span>
+                          <strong className="info-value">
+                            {formatMoney(entry.totalPaid)}
+                          </strong>
+                        </div>
+                      }
+                      highlight={index === 0}
+                    />
                   </button>
                 ))}
               </div>
@@ -1315,137 +1397,6 @@ function EventDetailPage() {
     })
   }
 }
-
-function EventMemberCard({
-  subscriber,
-  canManageMembers,
-  isAdmin,
-  isCurrentUser,
-  activeAction,
-  coCaptainCount,
-  onMakeCaptain,
-  onMakeCoCaptain,
-  onMakeMember,
-  onRemove,
-}: {
-  subscriber: EventSubscriberWithProfile
-  canManageMembers: boolean
-  isAdmin: boolean
-  isCurrentUser: boolean
-  activeAction: string | null
-  coCaptainCount: number
-  onMakeCaptain: () => void
-  onMakeCoCaptain: () => void
-  onMakeMember: () => void
-  onRemove: () => void
-}) {
-  const canMakeCaptain =
-    canManageMembers && subscriber.event_role !== 'captain' && !isCurrentUser
-  const canMakeCoCaptain =
-    canManageMembers &&
-    (subscriber.event_role === 'member' || subscriber.event_role === 'co-captain') &&
-    !isCurrentUser
-  const canMakeMember =
-    canManageMembers &&
-    subscriber.event_role === 'co-captain' &&
-    (!isCurrentUser || isAdmin)
-  const canRemove =
-    canManageMembers &&
-    subscriber.event_role !== 'captain' &&
-    (!isCurrentUser || isAdmin)
-  const canShowMenu = canMakeCaptain || canMakeCoCaptain || canMakeMember || canRemove
-
-  return (
-    <article className="admin-user-card">
-      <div className="member-row">
-        <MemberAvatar
-          member={subscriber}
-          highlight={
-            subscriber.event_role === 'captain' ||
-            subscriber.event_role === 'co-captain'
-          }
-        />
-        <div className="stack-xs">
-          <strong className="info-value">{getMemberName(subscriber)}</strong>
-          <span className="field-label">{subscriber.profiles.email}</span>
-          <span className="field-label">
-            Blood group: {subscriber.profiles.blood_group || 'Not set'}
-          </span>
-          {isCurrentUser ? <span className="event-badge">You</span> : null}
-          {subscriber.profiles.role === 'admin' ? (
-            <span className="member-directory-role-badge">App Admin</span>
-          ) : null}
-        </div>
-      </div>
-      {canShowMenu ? (
-        <details className="admin-member-menu">
-          <summary className="admin-member-menu-trigger" aria-label="Member actions">
-            ⋮
-          </summary>
-          <div className="admin-member-menu-panel">
-            {canMakeCaptain ? (
-              <button
-                type="button"
-                className="secondary-button admin-member-menu-button"
-                onClick={onMakeCaptain}
-                disabled={activeAction === `make-captain:${subscriber.user_id}`}
-              >
-                {activeAction === `make-captain:${subscriber.user_id}`
-                  ? 'Making captain...'
-                  : 'Make Captain'}
-              </button>
-            ) : null}
-            {canMakeCoCaptain ? (
-              <button
-                type="button"
-                className="secondary-button admin-member-menu-button"
-                onClick={onMakeCoCaptain}
-                disabled={
-                  activeAction === `make-co-captain:${subscriber.user_id}` ||
-                  subscriber.event_role === 'co-captain' ||
-                  (subscriber.event_role !== 'co-captain' && coCaptainCount >= 2)
-                }
-              >
-                {activeAction === `make-co-captain:${subscriber.user_id}`
-                  ? 'Promoting...'
-                  : subscriber.event_role === 'co-captain'
-                    ? 'Already co-captain'
-                    : coCaptainCount >= 2
-                      ? 'Co-captain limit reached'
-                      : 'Make Co-captain'}
-              </button>
-            ) : null}
-            {canMakeMember ? (
-              <button
-                type="button"
-                className="secondary-button admin-member-menu-button"
-                onClick={onMakeMember}
-                disabled={activeAction === `make-member:${subscriber.user_id}`}
-              >
-                {activeAction === `make-member:${subscriber.user_id}`
-                  ? 'Updating...'
-                  : 'Make Member'}
-              </button>
-            ) : null}
-            {canRemove ? (
-              <button
-                type="button"
-                className="danger-button admin-member-menu-button"
-                onClick={onRemove}
-                disabled={activeAction === `remove:${subscriber.user_id}`}
-              >
-                {activeAction === `remove:${subscriber.user_id}`
-                  ? 'Removing...'
-                  : 'Remove'}
-              </button>
-            ) : null}
-          </div>
-        </details>
-      ) : null}
-    </article>
-  )
-}
-
 function useAnimatedNumber(target: number) {
   const [value, setValue] = useState(0)
 

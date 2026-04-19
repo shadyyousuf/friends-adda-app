@@ -1199,11 +1199,41 @@ textarea:focus-visible {
   padding: 1rem;
 }
 
+.member-directory-card-button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+}
+
 .member-directory-meta {
   display: grid;
   gap: 0.45rem;
   justify-items: end;
   text-align: right;
+}
+
+.member-directory-side-content {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+  text-align: right;
+}
+
+.member-directory-leaderboard-meta {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+  text-align: right;
+}
+
+.member-directory-rank {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--text-secondary);
 }
 
 .member-directory-role-badge {

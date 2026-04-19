@@ -1,4 +1,5 @@
 import { MemberAvatar } from './events/EventTypeHelpers'
+import { type ReactNode } from 'react'
 
 type ProfileLike = {
   id: string
@@ -27,9 +28,13 @@ type MemberDirectoryPrimaryAction = {
 
 type MemberDirectoryCardProps = {
   profile: ProfileLike
+  roleLabel?: string
+  detailLines?: ReactNode[]
+  sideContent?: ReactNode
   menuActions?: MemberDirectoryMenuAction[]
   primaryAction?: MemberDirectoryPrimaryAction
   activeAction?: string | null
+  highlight?: boolean
 }
 
 export function MemberDirectoryCard({
@@ -37,8 +42,12 @@ export function MemberDirectoryCard({
   menuActions = [],
   primaryAction,
   activeAction = null,
+  roleLabel,
+  detailLines = [],
+  sideContent,
+  highlight = false,
 }: MemberDirectoryCardProps) {
-  const appRoleLabel = profile.role === 'admin' ? 'App Admin' : 'Member'
+  const appRoleLabel = roleLabel ?? (profile.role === 'admin' ? 'App Admin' : 'Member')
   const canShowMenu = menuActions.length > 0
 
   return (
@@ -46,12 +55,18 @@ export function MemberDirectoryCard({
       <div className="member-row">
         <MemberAvatar
           member={profile}
+          highlight={highlight}
           avatarText={profile.blood_group?.trim() || null}
         />
         <div className="stack-xs">
           <strong className="info-value">
             {profile.full_name || 'Unnamed member'}
           </strong>
+          {detailLines.map((line, index) => (
+            <span className="field-label" key={index}>
+              {line}
+            </span>
+          ))}
           <span className="member-directory-role-badge">
             {appRoleLabel}
           </span>
@@ -59,6 +74,7 @@ export function MemberDirectoryCard({
       </div>
 
       <div className="member-directory-meta">
+        {sideContent ? <div className="member-directory-side-content">{sideContent}</div> : null}
         {canShowMenu || primaryAction ? (
           <details className="admin-member-menu">
             <summary
