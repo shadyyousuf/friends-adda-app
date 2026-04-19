@@ -319,7 +319,7 @@ function SettingsPage() {
             )}
           </div>
 
-          <div className="stack-md">
+          {/* <div className="stack-md">
             <h3 className="section-title">Approved members</h3>
             {approvedMembers.length === 0 ? (
               <div className="empty-state">
@@ -360,7 +360,7 @@ function SettingsPage() {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
         </section>
       ) : null}
 
