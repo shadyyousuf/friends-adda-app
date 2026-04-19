@@ -111,7 +111,7 @@ export function FundTrackerEventContent({
             <p className="eyebrow">Monthly progress</p>
             <h3 className="section-title">{selectedPeriodLabel}</h3>
           </div>
-          <div className="period-controls">
+          <div className="period-controls fund-period-controls">
             <button
               type="button"
               className="topbar-action-button"

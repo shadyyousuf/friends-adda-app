@@ -1627,6 +1627,10 @@ textarea:focus-visible {
   justify-content: flex-end;
 }
 
+.fund-period-controls {
+  margin-left: auto;
+}
+
 .progress-track {
   position: relative;
   width: 100%;
@@ -1924,6 +1928,12 @@ textarea:focus-visible {
   .progress-meta {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .fund-period-controls {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .history-summary-grid {
