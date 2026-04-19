@@ -1,4 +1,12 @@
-import { CheckCircle2, Clock3, ChevronLeft, ChevronRight, Target, Users } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  Target,
+  Users,
+} from 'lucide-react'
 import type { TouchEvent } from 'react'
 import {
   buildFundStatusItems,
@@ -188,6 +196,16 @@ export function FundTrackerEventContent({
                       <div className="payment-state payment-state-pending">
                         <Clock3 size={16} />
                         <span>Pending</span>
+                        {item.payment?.amount != null || monthlyDefaultAmount != null ? (
+                          <>
+                            <CircleDollarSign size={14} />
+                            <span>
+                              {formatAmount(
+                                Number(item.payment?.amount ?? monthlyDefaultAmount ?? 0),
+                              )}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -199,10 +217,10 @@ export function FundTrackerEventContent({
                       className="primary-button fund-status-action"
                       onClick={() => onOpenPaymentDrawer(item.member.user_id)}
                       disabled={activeAction === `payment:${item.member.user_id}`}
+                      aria-label={`Pay ${getMemberName(item.member)} now`}
+                      title={`Pay ${getMemberName(item.member)} now`}
                     >
-                      {monthlyDefaultAmount
-                        ? formatAmount(monthlyDefaultAmount)
-                        : 'Set amount'}
+                      <CircleDollarSign size={16} />
                     </button>
                   ) : null}
                 </div>

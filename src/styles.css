@@ -741,9 +741,16 @@ textarea {
 }
 
 .fund-status-action {
-  min-height: 2.15rem;
-  padding: 0.42rem 0.88rem;
-  border-radius: 0.8rem;
+  width: 2.4rem;
+  min-width: 2.4rem;
+  height: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   font-size: 0.84rem;
 }
 
@@ -1715,10 +1722,17 @@ textarea:focus-visible {
 
   .primary-button,
   .secondary-button,
-  .danger-button,
-  .fund-status-action {
+  .danger-button {
     padding-inline: 0.95rem;
     min-height: 2.65rem;
+  }
+
+  .fund-status-action {
+    width: 2.65rem;
+    min-width: 2.65rem;
+    height: 2.65rem;
+    min-height: 2.65rem;
+    padding: 0;
   }
 
   .member-card,
