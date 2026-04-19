@@ -1108,6 +1108,71 @@ textarea:focus-visible {
   animation: drawer-slide-up 220ms ease;
 }
 
+.add-members-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+
+.add-members-search {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.add-members-toolbar-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.add-members-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(23rem, 46vh);
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.add-member-item {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+.add-member-item.is-selected {
+  border-color: color-mix(in srgb, #57d1be 55%, transparent);
+  background: color-mix(in srgb, #57d1be 14%, transparent);
+}
+
+.add-member-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.2rem;
+  accent-color: #57d1be;
+}
+
+.add-member-meta {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.add-member-meta .info-value,
+.add-member-meta .field-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .drawer-handle {
   width: 3rem;
   height: 0.32rem;

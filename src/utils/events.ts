@@ -179,6 +179,29 @@ export async function createEventWithCaptain({
   return data
 }
 
+export async function addMembersToEvent(eventId: string, userIds: string[]) {
+  if (userIds.length === 0) {
+    return
+  }
+
+  const insertPayload = userIds.map((userId) => ({
+    event_id: eventId,
+    user_id: userId,
+    event_role: 'member' as const,
+  }))
+
+  const { error } = await supabase
+    .from('event_subscribers')
+    .upsert(insertPayload, {
+      onConflict: 'event_id,user_id',
+      ignoreDuplicates: true,
+    })
+
+  if (error) {
+    throw error
+  }
+}
+
 export async function joinPublicEvent(eventId: string) {
   const { data, error } = await supabase.rpc('join_public_event', {
     p_event_id: eventId,

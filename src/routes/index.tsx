@@ -20,6 +20,7 @@ export const Route = createFileRoute('/')({
 })
 
 function HomePage() {
+  const navigate = Route.useNavigate()
   const { user, profile, isLoading } = useAuth()
   const queryClient = useQueryClient()
   const locationSearch = useRouterState({ select: (state) => state.location.search })
@@ -138,7 +139,7 @@ function HomePage() {
         throw new Error('Monthly default amount must be greater than zero.')
       }
 
-      await createEventWithCaptain({
+      const createdEvent = await createEventWithCaptain({
         title,
         description,
         type: eventType,
@@ -147,6 +148,13 @@ function HomePage() {
         targetAmount: normalizedTargetAmount,
         monthlyDefaultAmount: normalizedMonthlyDefaultAmount,
       })
+      if (!createdEvent?.id) {
+        throw new Error('Failed to create event.')
+      }
+
+      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
+
+      void navigate({ to: '/events/$eventId', params: { eventId: createdEvent.id } })
       setTitle('')
       setDescription('')
       setEventType('general')
@@ -155,7 +163,6 @@ function HomePage() {
       setTargetAmount('')
       setMonthlyDefaultAmount('')
       setIsCreateOpen(false)
-      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
     } catch (error) {
       setCreateError(
         error instanceof Error ? error.message : 'Failed to create event.',

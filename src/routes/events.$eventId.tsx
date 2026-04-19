@@ -5,7 +5,6 @@ import {
   Menu,
   Pencil,
   Trash2,
-  Share2,
   Trophy,
   UserRoundPlus,
   Users,
@@ -52,6 +51,7 @@ import {
 } from '../utils/fund-tracker'
 import {
   demoteEventMemberToMember,
+  addMembersToEvent,
   eventDetailQueryOptions,
   eventKeys,
   deleteEvent,
@@ -64,6 +64,7 @@ import {
   type EventDetailData,
   upsertEventFundPayment,
 } from '../utils/events'
+import { approvedMemberProfilesQueryOptions } from '../utils/profile'
 
 export const Route = createFileRoute('/events/$eventId')({
   component: EventDetailPage,
@@ -88,6 +89,7 @@ function getEventMenuItems(
   eventType?: string,
   canDelete?: boolean,
   canEditEvent?: boolean,
+  canManageMembers?: boolean,
 ): FloatingEventMenuItem[] {
   const items: FloatingEventMenuItem[] = []
 
@@ -108,11 +110,15 @@ function getEventMenuItems(
         label: 'Members',
         icon: <Users size={16} />,
       },
-      {
-        type: 'invite-friends',
-        label: 'Invite friends',
-        icon: <UserRoundPlus size={16} />,
-      },
+      ...(canManageMembers
+        ? [
+            {
+              type: 'invite-friends',
+              label: 'Add member',
+              icon: <UserRoundPlus size={16} />,
+            },
+          ]
+        : []),
     )
   } else if (eventType === 'random_picker') {
     items.push(
@@ -126,11 +132,15 @@ function getEventMenuItems(
         label: 'Members',
         icon: <Users size={16} />,
       },
-      {
-        type: 'invite-friends',
-        label: 'Invite friends',
-        icon: <Share2 size={16} />,
-      },
+      ...(canManageMembers
+        ? [
+            {
+              type: 'invite-friends',
+              label: 'Add member',
+              icon: <UserRoundPlus size={16} />,
+            },
+          ]
+        : []),
     )
   } else {
     if (canEditEvent) {
@@ -147,11 +157,15 @@ function getEventMenuItems(
         label: 'Members',
         icon: <Users size={16} />,
       },
-      {
-        type: 'invite-friends',
-        label: 'Invite friends',
-        icon: <Share2 size={16} />,
-      },
+      ...(canManageMembers
+        ? [
+            {
+              type: 'invite-friends',
+              label: 'Add member',
+              icon: <UserRoundPlus size={16} />,
+            },
+          ]
+        : []),
     )
   }
 
@@ -186,7 +200,7 @@ function EventDetailPage() {
   const { setEventTitle } = useEventPageTitle()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [activePanel, setActivePanel] = useState<
-    null | 'members' | 'leaderboard' | 'event-details'
+    null | 'members' | 'leaderboard' | 'event-details' | 'add-members'
   >(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
@@ -209,10 +223,16 @@ function EventDetailPage() {
   const [editVisibility, setEditVisibility] = useState<EventVisibility>('public')
   const [editTargetAmount, setEditTargetAmount] = useState('')
   const [editMonthlyDefaultAmount, setEditMonthlyDefaultAmount] = useState('')
+  const [addMemberSearch, setAddMemberSearch] = useState('')
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const touchStartXRef = useRef<number | null>(null)
 
   const detailQuery = useQuery({
     ...eventDetailQueryOptions(eventId),
+    enabled: Boolean(user && profile?.is_approved),
+  })
+  const approvedMemberProfilesQuery = useQuery({
+    ...approvedMemberProfilesQueryOptions(),
     enabled: Boolean(user && profile?.is_approved),
   })
 
@@ -282,10 +302,26 @@ function EventDetailPage() {
     event?.type,
     canDeleteEvent,
     canEditEvent,
+    canManageMembers,
   )
   const monthlyDefaultAmount = getMonthlyDefaultAmount(event)
   const defaultPaymentAmount = monthlyDefaultAmount !== null ? String(monthlyDefaultAmount) : ''
   const paymentMinAmount = monthlyDefaultAmount ?? 0.01
+  const allApprovedMembers = approvedMemberProfilesQuery.data ?? []
+  const subscriberIds = new Set(detail.subscribers.map((subscriber) => subscriber.user_id))
+  const addMemberCandidates = allApprovedMembers.filter(
+    (member) => !subscriberIds.has(member.id),
+  )
+  const addMemberSearchTerm = addMemberSearch.trim().toLowerCase()
+  const filteredAddMemberCandidates = addMemberSearchTerm
+    ? addMemberCandidates.filter((member) => {
+        const name = member.full_name?.trim().toLowerCase() ?? ''
+        return (
+          name.includes(addMemberSearchTerm) ||
+          member.email.toLowerCase().includes(addMemberSearchTerm)
+        )
+      })
+    : addMemberCandidates
 
   useEffect(() => {
     if (!event) {
@@ -515,6 +551,14 @@ function EventDetailPage() {
     setIsMenuOpen(false)
   }
 
+  function openAddMembersPanel() {
+    setActivePanel('add-members')
+    setIsMenuOpen(false)
+    setAddMemberSearch('')
+    setSelectedMemberIds([])
+    setErrorMessage(null)
+  }
+
   function openEventDetailsPanel(editMode: boolean) {
     if (!detail.event) {
       return
@@ -557,40 +601,29 @@ function EventDetailPage() {
     }
   }
 
-  async function handleInviteFriends() {
-    if (!detail.event) {
+  function toggleAddMemberSelection(memberId: string) {
+    setSelectedMemberIds((currentIds) =>
+      currentIds.includes(memberId)
+        ? currentIds.filter((id) => id !== memberId)
+        : [...currentIds, memberId],
+    )
+  }
+
+  async function handleAddMembers() {
+    if (selectedMemberIds.length === 0) {
       return
     }
 
-    const inviteUrl = window.location.href
-    const sharePayload = {
-      title: detail.event.title,
-      text: `Join ${detail.event.title} on Friends Adda`,
-      url: inviteUrl,
-    }
-
-    setIsMenuOpen(false)
-
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share(sharePayload)
-        return
-      }
-
-      if (typeof navigator.clipboard?.writeText === 'function') {
-        await navigator.clipboard.writeText(inviteUrl)
-        setErrorMessage('Invite link copied to clipboard.')
-        return
-      }
-
-      window.prompt('Copy this invite link:', inviteUrl)
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
-      }
-
-      setErrorMessage('Failed to share invite link.')
-    }
+    await handleModuleAction('add-members', async () => {
+      await addMembersToEvent(eventId, selectedMemberIds)
+      setActivePanel(null)
+      setAddMemberSearch('')
+      setSelectedMemberIds([])
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: eventKeys.detail(eventId) }),
+        queryClient.invalidateQueries({ queryKey: eventKeys.dashboard }),
+      ])
+    })
   }
 
   async function handleDeleteEvent() {
@@ -638,6 +671,11 @@ function EventDetailPage() {
   }
 
   function closePanel() {
+    if (activePanel === 'add-members') {
+      setAddMemberSearch('')
+      setSelectedMemberIds([])
+    }
+
     setActivePanel(null)
     setIsEditingEvent(false)
     setErrorMessage(null)
@@ -671,7 +709,7 @@ function EventDetailPage() {
     }
 
     if (action === 'invite-friends') {
-      void handleInviteFriends()
+      openAddMembersPanel()
       return
     }
 
@@ -946,6 +984,101 @@ function EventDetailPage() {
                     />
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {activePanel === 'add-members' ? (
+        <section className="drawer-overlay" onClick={() => closePanel()}>
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="section-header-copy">
+              <p className="eyebrow">Event members</p>
+              <h3 className="section-title">Add member</h3>
+            </div>
+
+            <div className="add-members-toolbar">
+              <label className="stack-xs add-members-search">
+                <span className="field-label">Search member</span>
+                <input
+                  type="text"
+                  className="field-input"
+                  value={addMemberSearch}
+                  onChange={(event) => setAddMemberSearch(event.target.value)}
+                  placeholder="Search by name or email"
+                />
+              </label>
+              <div className="add-members-toolbar-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    closePanel()
+                  }}
+                  disabled={activeAction === 'add-members'}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={
+                    selectedMemberIds.length === 0 ||
+                    activeAction === 'add-members'
+                  }
+                  onClick={() => void handleAddMembers()}
+                >
+                  {activeAction === 'add-members'
+                    ? 'Adding...'
+                    : `Add (${selectedMemberIds.length})`}
+                </button>
+              </div>
+            </div>
+
+            {filteredAddMemberCandidates.length === 0 ? (
+              <div className="empty-state">
+                <h4 className="empty-state-title">
+                  {addMemberSearchTerm ? 'No matching members' : 'No new members to add'}
+                </h4>
+              </div>
+            ) : (
+              <div className="add-members-list">
+                {filteredAddMemberCandidates.map((member) => {
+                  const checkboxId = `add-member-${member.id}`
+                  const isChecked = selectedMemberIds.includes(member.id)
+
+                  return (
+                    <label
+                      key={member.id}
+                      htmlFor={checkboxId}
+                      className={`add-member-item${isChecked ? ' is-selected' : ''}`}
+                    >
+                      <input
+                        id={checkboxId}
+                        type="checkbox"
+                        className="add-member-checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleAddMemberSelection(member.id)}
+                      />
+                      <MemberAvatar
+                        member={member}
+                        avatarText={member.blood_group?.trim() || null}
+                      />
+                      <div className="stack-xs add-member-meta">
+                        <strong className="info-value">
+                          {member.full_name || 'Unnamed member'}
+                        </strong>
+                        <span className="field-label">{member.email}</span>
+                        <span className="member-directory-role-badge">Member</span>
+                      </div>
+                    </label>
+                  )
+                })}
               </div>
             )}
           </div>
