@@ -1,9 +1,28 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import { RotateCw } from 'lucide-react'
-import type { ReactNode } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useState,
+} from 'react'
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
 import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
+
+type EventTitleContextValue = {
+  eventTitle: string | null
+  setEventTitle: (value: string | null) => void
+}
+
+const EventTitleContext = createContext<EventTitleContextValue>({
+  eventTitle: null,
+  setEventTitle: () => {},
+})
+
+export function useEventPageTitle() {
+  return useContext(EventTitleContext)
+}
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
@@ -12,13 +31,19 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const { user, profile, isLoading } = useAuth()
   const pageMeta = getPageMeta(pathname, Boolean(user), profile?.full_name ?? null)
   const status = getStatusCopy({ user: Boolean(user), isLoading, profile })
+  const [eventTitle, setEventTitle] = useState<string | null>(null)
 
   const isDashboardRoute = pathname === '/'
   const isAuthScreen = pathname === '/login' || pathname === '/signup'
   const isSettingsRoute = pathname === '/settings'
+  const isEventRoute = pathname.startsWith('/events/')
   const showPendingScreen =
     user && profile && !profile.is_approved && !isSettingsRoute
   const showProfileSetupScreen = user && !profile && !isLoading && !isSettingsRoute
+
+  const topbarTitle = isEventRoute
+    ? eventTitle ?? pageMeta.title
+    : pageMeta.title
 
   return (
     <div className="app-shell">
@@ -28,10 +53,12 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
       <div className="mobile-frame">
         <header className="glass-card topbar">
           <div className="topbar-copy">
-            <p className="eyebrow page-kicker">{pageMeta.kicker}</p>
-            <h1 className="topbar-title">{pageMeta.title}</h1>
+            {!isEventRoute ? (
+              <p className="eyebrow page-kicker">{pageMeta.kicker}</p>
+            ) : null}
+            <h1 className="topbar-title">{topbarTitle}</h1>
           </div>
-          {isDashboardRoute && user && profile?.is_approved ? (
+          {isEventRoute ? null : isDashboardRoute && user && profile?.is_approved ? (
             <button
               type="button"
               className="topbar-action-button"
@@ -43,7 +70,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
             >
               <RotateCw size={18} />
             </button>
-          ) : (
+          ) : isEventRoute ? null : (
             <div className={`status-chip ${status.className}`}>{status.label}</div>
           )}
         </header>
@@ -53,9 +80,11 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         ) : showProfileSetupScreen ? (
           <ProfileSetupCard />
         ) : (
-          <main className="content-shell" aria-live="polite">
-            {children}
-          </main>
+          <EventTitleContext.Provider value={{ eventTitle, setEventTitle }}>
+            <main className="content-shell" aria-live="polite">
+              {children}
+            </main>
+          </EventTitleContext.Provider>
         )}
 
         {!isAuthScreen ? <BottomNav /> : null}
@@ -137,7 +166,7 @@ function getPageMeta(
   if (pathname.startsWith('/events/')) {
     return {
       kicker: 'Friends Adda',
-      title: 'Event detail',
+      title: 'Loading event',
     }
   }
 

@@ -1,12 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  Crown,
-  Target,
+  Info,
+  Menu,
+  Pencil,
+  Trash2,
+  Share2,
+  Trophy,
+  UserRoundPlus,
   Users,
 } from 'lucide-react'
 import {
@@ -14,22 +15,34 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type ReactNode,
   type TouchEvent,
 } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
+import { FundTrackerEventContent } from '../components/events/FundTrackerEventContent'
+import { GeneralEventContent } from '../components/events/GeneralEventContent'
+import { RandomPickerEventContent } from '../components/events/RandomPickerEventContent'
+import {
+  ContributionTimeline,
+  formatEventRole,
+  formatEventType,
+  formatMoney,
+  formatVisibility,
+  InfoItem,
+  MemberAvatar,
+} from '../components/events/EventTypeHelpers'
 import { useAuth } from '../components/AuthProvider'
+import { useEventPageTitle } from '../components/MobileLayout'
 import {
   buildFundStatusItems,
   buildLeaderboard,
   buildMemberTimeline,
   calculateMonthlyProgress,
-  DEFAULT_MONTHLY_AMOUNT,
   formatPeriodLabel,
-  getAvatarGradient,
+  MONTH_NAMES,
   getCurrentPeriod,
   getMemberName,
   getRecentPeriods,
-  MONTH_NAMES,
   parsePeriodKey,
   periodKey,
   sumAllPaid,
@@ -38,9 +51,13 @@ import {
   demoteEventMemberToMember,
   eventDetailQueryOptions,
   eventKeys,
+  deleteEvent,
+  type EventVisibility,
   promoteEventMemberToCoCaptain,
   removeEventMember,
   spinRandomPicker,
+  transferEventCaptain,
+  updateEvent,
   type EventDetailData,
   type EventSubscriberWithProfile,
   upsertEventFundPayment,
@@ -50,12 +67,128 @@ export const Route = createFileRoute('/events/$eventId')({
   component: EventDetailPage,
 })
 
+type FloatingEventMenuActionType =
+  | 'edit-event'
+  | 'event-details'
+  | 'leaderboard'
+  | 'members'
+  | 'invite-friends'
+  | 'delete-event'
+
+type FloatingEventMenuItem = {
+  type: FloatingEventMenuActionType
+  label: string
+  icon: ReactNode
+  isDanger?: true
+}
+
+function getEventMenuItems(
+  eventType?: string,
+  canDelete?: boolean,
+  canEditEvent?: boolean,
+): FloatingEventMenuItem[] {
+  const items: FloatingEventMenuItem[] = []
+
+  if (eventType === 'fund_tracker') {
+    items.push(
+      {
+        type: 'event-details',
+        label: 'Event details',
+        icon: <Info size={16} />,
+      },
+      {
+        type: 'leaderboard',
+        label: 'Leaderboard',
+        icon: <Trophy size={16} />,
+      },
+      {
+        type: 'members',
+        label: 'Members',
+        icon: <Users size={16} />,
+      },
+      {
+        type: 'invite-friends',
+        label: 'Invite friends',
+        icon: <UserRoundPlus size={16} />,
+      },
+    )
+  } else if (eventType === 'random_picker') {
+    items.push(
+      {
+        type: 'event-details',
+        label: 'Event details',
+        icon: <Info size={16} />,
+      },
+      {
+        type: 'members',
+        label: 'Members',
+        icon: <Users size={16} />,
+      },
+      {
+        type: 'invite-friends',
+        label: 'Invite friends',
+        icon: <Share2 size={16} />,
+      },
+    )
+  } else {
+    if (canEditEvent) {
+      items.push({
+        type: 'edit-event',
+        label: 'Edit event',
+        icon: <Pencil size={16} />,
+      })
+    }
+
+    items.push(
+      {
+        type: 'members',
+        label: 'Members',
+        icon: <Users size={16} />,
+      },
+      {
+        type: 'invite-friends',
+        label: 'Invite friends',
+        icon: <Share2 size={16} />,
+      },
+    )
+  }
+
+  if (canDelete) {
+    items.push({
+      type: 'delete-event',
+      label: 'Delete event',
+      icon: <Trash2 size={16} />,
+      isDanger: true,
+    })
+  }
+
+  return items
+}
+
+function getMonthlyDefaultAmount(event: EventDetailData['event']): number | null {
+  if (!event?.monthly_default_amount) {
+    return null
+  }
+
+  const monthlyDefault = Number(event.monthly_default_amount)
+  return Number.isFinite(monthlyDefault) && monthlyDefault > 0
+    ? monthlyDefault
+    : null
+}
+
 function EventDetailPage() {
   const { eventId } = Route.useParams()
+  const navigate = Route.useNavigate()
   const { user, profile, isLoading } = useAuth()
   const queryClient = useQueryClient()
+  const { setEventTitle } = useEventPageTitle()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [activePanel, setActivePanel] = useState<
+    null | 'members' | 'leaderboard' | 'event-details'
+  >(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isEditingEvent, setIsEditingEvent] = useState(false)
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const [billAmount, setBillAmount] = useState('')
   const [selectedPeriodKey, setSelectedPeriodKey] = useState(() =>
@@ -65,9 +198,15 @@ function EventDetailPage() {
     null,
   )
   const [paymentAmount, setPaymentAmount] = useState(
-    String(DEFAULT_MONTHLY_AMOUNT),
+    '',
   )
   const [historyUserId, setHistoryUserId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editEventDate, setEditEventDate] = useState('')
+  const [editVisibility, setEditVisibility] = useState<EventVisibility>('public')
+  const [editTargetAmount, setEditTargetAmount] = useState('')
+  const [editMonthlyDefaultAmount, setEditMonthlyDefaultAmount] = useState('')
   const touchStartXRef = useRef<number | null>(null)
 
   const detailQuery = useQuery({
@@ -89,6 +228,8 @@ function EventDetailPage() {
         ? 'Failed to load event detail.'
         : null
 
+  const event = detail.event
+
   const selectedPeriod = parsePeriodKey(selectedPeriodKey)
   const selectedPeriodLabel = formatPeriodLabel(selectedPeriod)
   const selectedMonthLabel = MONTH_NAMES[selectedPeriod.month - 1]
@@ -101,10 +242,13 @@ function EventDetailPage() {
   )
   const canManageMembers =
     profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
+  const canEditEvent =
+    profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
   const canRunModules =
     profile?.role === 'admin' ||
     currentSubscriber?.event_role === 'captain' ||
     currentSubscriber?.event_role === 'co-captain'
+  const canDeleteEvent = canEditEvent
   const fundStatusItems = buildFundStatusItems(
     detail.subscribers,
     detail.funds,
@@ -128,6 +272,40 @@ function EventDetailPage() {
     detail.subscribers.find(
       (subscriber) => subscriber.user_id === paymentDrawerUserId,
     ) ?? null
+  const coCaptainCount = detail.subscribers.reduce(
+    (count, subscriber) =>
+      count + (subscriber.event_role === 'co-captain' ? 1 : 0),
+    0,
+  )
+  const menuActionItems = getEventMenuItems(
+    event?.type,
+    canDeleteEvent,
+    canEditEvent,
+  )
+  const monthlyDefaultAmount = getMonthlyDefaultAmount(event)
+  const defaultPaymentAmount = monthlyDefaultAmount !== null ? String(monthlyDefaultAmount) : ''
+  const paymentMinAmount = monthlyDefaultAmount ?? 0.01
+
+  useEffect(() => {
+    if (!event) {
+      setEventTitle(null)
+      return
+    }
+
+    setEventTitle(event.title)
+    setEditTitle(event.title)
+    setEditDescription(event.description ?? '')
+    setEditEventDate(event.event_date.split('T')[0] ?? '')
+    setEditVisibility(event.visibility)
+    setEditTargetAmount(event.target_amount ? String(event.target_amount) : '')
+    setEditMonthlyDefaultAmount(
+      event.monthly_default_amount ? String(event.monthly_default_amount) : '',
+    )
+
+    return () => {
+      setEventTitle(null)
+    }
+  }, [event, setEventTitle])
 
   useEffect(() => {
     if (selectedPeriodIndex === -1) {
@@ -136,7 +314,11 @@ function EventDetailPage() {
   }, [fundPeriods, selectedPeriodIndex])
 
   async function handleAction(
-    action: 'promote' | 'demote' | 'remove',
+    action:
+      | 'make-captain'
+      | 'make-co-captain'
+      | 'make-member'
+      | 'remove',
     userId: string,
   ) {
     const actionKey = `${action}:${userId}`
@@ -144,9 +326,11 @@ function EventDetailPage() {
     setActiveAction(actionKey)
 
     try {
-      if (action === 'promote') {
+      if (action === 'make-captain') {
+        await transferEventCaptain(eventId, userId)
+      } else if (action === 'make-co-captain') {
         await promoteEventMemberToCoCaptain(eventId, userId)
-      } else if (action === 'demote') {
+      } else if (action === 'make-member') {
         await demoteEventMemberToMember(eventId, userId)
       } else {
         await removeEventMember(eventId, userId)
@@ -166,6 +350,78 @@ function EventDetailPage() {
     }
   }
 
+  async function handleEventUpdate(eventForm: FormEvent<HTMLFormElement>) {
+    eventForm.preventDefault()
+
+    if (!detail.event) {
+      return
+    }
+
+    const title = editTitle.trim()
+
+    if (!title) {
+      setErrorMessage('Event title is required.')
+      return
+    }
+
+    if (!editEventDate) {
+      setErrorMessage('Event date is required.')
+      return
+    }
+
+    setActiveAction('event-update')
+
+    try {
+      const normalizedTargetAmount =
+        detail.event.type === 'fund_tracker' && editTargetAmount.trim()
+          ? Number(editTargetAmount)
+          : null
+      const normalizedMonthlyDefaultAmount =
+        detail.event.type === 'fund_tracker' && editMonthlyDefaultAmount.trim()
+          ? Number(editMonthlyDefaultAmount)
+          : null
+
+      if (
+        normalizedTargetAmount !== null &&
+        (!Number.isFinite(normalizedTargetAmount) || normalizedTargetAmount <= 0)
+      ) {
+        throw new Error('Target amount must be greater than zero.')
+      }
+      if (
+        normalizedMonthlyDefaultAmount !== null &&
+        (!Number.isFinite(normalizedMonthlyDefaultAmount) ||
+          normalizedMonthlyDefaultAmount <= 0)
+      ) {
+        throw new Error('Monthly default amount must be greater than zero.')
+      }
+
+      await updateEvent({
+        eventId: detail.event.id,
+        title,
+        description: editDescription.trim() || null,
+        eventDate: editEventDate,
+        visibility: editVisibility,
+        targetAmount:
+          detail.event.type === 'fund_tracker' ? normalizedTargetAmount : undefined,
+        monthlyDefaultAmount:
+          detail.event.type === 'fund_tracker'
+            ? normalizedMonthlyDefaultAmount
+            : undefined,
+      })
+
+      setIsEditingEvent(false)
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.detail(eventId),
+      })
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to update event.',
+      )
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -175,9 +431,14 @@ function EventDetailPage() {
 
     const amount = Number(paymentAmount)
 
-    if (!Number.isFinite(amount) || amount < DEFAULT_MONTHLY_AMOUNT) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrorMessage('Amount must be greater than zero.')
+      return
+    }
+
+    if (monthlyDefaultAmount !== null && amount < monthlyDefaultAmount) {
       setErrorMessage(
-        `Amount must be at least ${formatMoney(DEFAULT_MONTHLY_AMOUNT)}.`,
+        `Amount must be at least ${formatMoney(monthlyDefaultAmount)}.`,
       )
       return
     }
@@ -191,7 +452,7 @@ function EventDetailPage() {
         year: selectedPeriod.year,
       })
       setPaymentDrawerUserId(null)
-      setPaymentAmount(String(DEFAULT_MONTHLY_AMOUNT))
+      setPaymentAmount(defaultPaymentAmount)
       await queryClient.invalidateQueries({
         queryKey: eventKeys.detail(eventId),
       })
@@ -200,7 +461,7 @@ function EventDetailPage() {
 
   function openPaymentDrawer(userId: string) {
     setPaymentDrawerUserId(userId)
-    setPaymentAmount(String(DEFAULT_MONTHLY_AMOUNT))
+    setPaymentAmount(defaultPaymentAmount)
     setErrorMessage(null)
   }
 
@@ -243,6 +504,181 @@ function EventDetailPage() {
     }
   }
 
+  function openMemberPanel() {
+    setActivePanel('members')
+    setIsMenuOpen(false)
+  }
+
+  function openLeaderboardPanel() {
+    setActivePanel('leaderboard')
+    setIsMenuOpen(false)
+  }
+
+  function openEventDetailsPanel(editMode: boolean) {
+    if (!detail.event) {
+      return
+    }
+
+    setIsEditingEvent(canEditEvent && editMode)
+    setActivePanel('event-details')
+    setIsMenuOpen(false)
+
+    if (canEditEvent && editMode) {
+      setEditTitle(detail.event.title)
+      setEditDescription(detail.event.description ?? '')
+      setEditEventDate(detail.event.event_date.split('T')[0] ?? '')
+      setEditVisibility(detail.event.visibility)
+      setEditTargetAmount(
+        detail.event.type === 'fund_tracker' && detail.event.target_amount
+          ? String(detail.event.target_amount)
+          : '',
+      )
+      setEditMonthlyDefaultAmount(
+        detail.event.type === 'fund_tracker' && detail.event.monthly_default_amount
+          ? String(detail.event.monthly_default_amount)
+          : '',
+      )
+    } else {
+      setEditTitle(detail.event.title)
+      setEditDescription(detail.event.description ?? '')
+      setEditEventDate(detail.event.event_date.split('T')[0] ?? '')
+      setEditVisibility(detail.event.visibility)
+      setEditTargetAmount(
+        detail.event.type === 'fund_tracker' && detail.event.target_amount
+          ? String(detail.event.target_amount)
+          : '',
+      )
+      setEditMonthlyDefaultAmount(
+        detail.event.type === 'fund_tracker' && detail.event.monthly_default_amount
+          ? String(detail.event.monthly_default_amount)
+          : '',
+      )
+    }
+  }
+
+  async function handleInviteFriends() {
+    if (!detail.event) {
+      return
+    }
+
+    const inviteUrl = window.location.href
+    const sharePayload = {
+      title: detail.event.title,
+      text: `Join ${detail.event.title} on Friends Adda`,
+      url: inviteUrl,
+    }
+
+    setIsMenuOpen(false)
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share(sharePayload)
+        return
+      }
+
+      if (typeof navigator.clipboard?.writeText === 'function') {
+        await navigator.clipboard.writeText(inviteUrl)
+        setErrorMessage('Invite link copied to clipboard.')
+        return
+      }
+
+      window.prompt('Copy this invite link:', inviteUrl)
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+
+      setErrorMessage('Failed to share invite link.')
+    }
+  }
+
+  async function handleDeleteEvent() {
+    if (!detail.event) {
+      return
+    }
+
+    if (!canDeleteEvent) {
+      setErrorMessage('Only app admins or event captains can delete this event.')
+      setIsDeleteConfirmOpen(false)
+      return
+    }
+
+    setActiveAction('delete-event')
+
+    try {
+      await deleteEvent(eventId)
+      setIsDeleteConfirmOpen(false)
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: eventKeys.dashboard,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: eventKeys.detail(eventId),
+        }),
+      ])
+      void navigate({ to: '/' })
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to delete event.',
+      )
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  function openDeleteConfirmation() {
+    setIsDeleteConfirmOpen(true)
+    setErrorMessage(null)
+    setIsMenuOpen(false)
+  }
+
+  function closeDeleteConfirmation() {
+    setIsDeleteConfirmOpen(false)
+  }
+
+  function closePanel() {
+    setActivePanel(null)
+    setIsEditingEvent(false)
+    setErrorMessage(null)
+  }
+
+  function closeFloatingMenu() {
+    setIsMenuOpen(false)
+  }
+
+  function handleFloatingMenuSelect(action: FloatingEventMenuActionType) {
+    closeFloatingMenu()
+
+    if (action === 'edit-event') {
+      openEventDetailsPanel(true)
+      return
+    }
+
+    if (action === 'event-details') {
+      openEventDetailsPanel(false)
+      return
+    }
+
+    if (action === 'members') {
+      openMemberPanel()
+      return
+    }
+
+    if (action === 'leaderboard') {
+      openLeaderboardPanel()
+      return
+    }
+
+    if (action === 'invite-friends') {
+      void handleInviteFriends()
+      return
+    }
+
+    if (action === 'delete-event') {
+      openDeleteConfirmation()
+    }
+  }
+
   if (isLoading) {
     return <AnimatedContentLoader isVisible mode="panel" />
   }
@@ -280,258 +716,127 @@ function EventDetailPage() {
     )
   }
 
-  const event = detail.event
-
   return (
     <div className="stack-lg">
-      <section className="glass-card panel stack-md">
-        <div className="split-header">
-          <div className="section-header-copy">
-            <p className="eyebrow">Event detail</p>
-            <h2 className="panel-title">{event?.title ?? 'Loading...'}</h2>
-          </div>
-          <Link to="/" className="secondary-button">
-            Back
-          </Link>
-        </div>
-        {event?.description ? <p className="field-label">{event.description}</p> : null}
-        <div className="info-grid">
-          <InfoItem label="Type" value={formatEventType(event?.type)} />
-          <InfoItem label="Privacy" value={formatVisibility(event?.visibility)} />
-          <InfoItem
-            label="Event date"
-            value={
-              event?.event_date
-                ? new Date(event.event_date).toLocaleDateString()
-                : 'unknown'
-            }
-          />
-          <InfoItem label="Status" value={event?.status ?? 'unknown'} />
-          <InfoItem label="Members" value={String(detail.subscribers.length)} />
-        </div>
-        {event?.type === 'fund_tracker' ? (
-          <div className="meta-row">
-            <span className="event-badge">
-              Target:{' '}
-              {event.target_amount ? formatMoney(event.target_amount) : 'Optional'}
-            </span>
-            <span className="event-badge">
-              Default monthly: {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
-            </span>
-          </div>
-        ) : null}
-        {detailError ? <p className="form-error">{detailError}</p> : null}
-        {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
-      </section>
-
-      <section className="glass-card panel stack-md">
-        <div className="split-header">
-          <div className="section-header-copy">
-            <p className="eyebrow">Members</p>
-            <h3 className="section-title">Event hierarchy</h3>
-          </div>
-          {canManageMembers ? (
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setIsDrawerOpen(true)}
-            >
-              <Users size={16} />
-              Manage
-            </button>
-          ) : (
-            <span className="status-chip">{detail.subscribers.length} members</span>
-          )}
-        </div>
-        <div className="stack-sm">
-          {detail.subscribers.map((subscriber) => (
-            <SubscriberPreview
-              key={subscriber.user_id}
-              subscriber={subscriber}
-              isCurrentUser={subscriber.user_id === user.id}
-            />
-          ))}
-        </div>
-      </section>
+      {(detailError || errorMessage) && (
+        <section className="glass-card panel">
+          {detailError ? <p className="form-error">{detailError}</p> : null}
+          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+        </section>
+      )}
 
       {event?.type === 'fund_tracker' ? (
-        <section
-          className="fund-tracker-layout"
+        <FundTrackerEventContent
+          event={event}
+          detail={detail}
+          totalCollected={animatedTotalPaid}
+          selectedPeriodLabel={selectedPeriodLabel}
+          selectedPeriodKey={selectedPeriodKey}
+          fundPeriods={fundPeriods}
+          selectedPeriodIndex={selectedPeriodIndex}
+          fundStatusItems={fundStatusItems}
+          monthlyProgress={monthlyProgress}
+          monthlyDefaultAmount={monthlyDefaultAmount}
+          canRunModules={Boolean(canRunModules)}
+          activeAction={activeAction}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-        >
-          <section
-            className="glass-card panel stack-md fade-in-up"
-            style={{ animationDelay: '0.05s' }}
-          >
-            <div className="fund-total-card">
-              <div className="section-header-copy">
-                <p className="eyebrow">Money tracker</p>
-                <h3 className="section-title">All-time collected fund</h3>
-              </div>
-              <div className="fund-total-value">{formatMoney(animatedTotalPaid)}</div>
-              <div className="fund-total-meta">
-                <span className="event-badge">
-                  <Users size={14} />
-                  {detail.subscribers.length} members
-                </span>
-                <span className="event-badge">
-                  <Target size={14} />
-                  {event.target_amount
-                    ? formatMoney(event.target_amount)
-                    : 'No target set'}
-                </span>
-                <span className="event-badge">
-                  Monthly default {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
-                </span>
-              </div>
-            </div>
-          </section>
+          onOlderMonth={goToOlderMonth}
+          onNewerMonth={goToNewerMonth}
+          onPeriodChange={setSelectedPeriodKey}
+          onOpenPaymentDrawer={openPaymentDrawer}
+        />
+      ) : null}
 
-          <section
-            className="glass-card panel stack-md fade-in-up"
-            style={{ animationDelay: '0.1s' }}
+      {event?.type === 'random_picker' ? (
+        <RandomPickerEventContent
+          detail={detail}
+          billAmount={billAmount}
+          setBillAmount={setBillAmount}
+          canSpin={Boolean(canRunModules)}
+          activeAction={activeAction}
+          onSpin={(submitEvent) => void handleSpin(submitEvent)}
+        />
+      ) : null}
+
+      {event?.type === 'general' ? (
+        <GeneralEventContent
+          event={event}
+          memberCount={detail.subscribers.length}
+        />
+      ) : null}
+
+      {activePanel === 'members' ? (
+        <section className="drawer-overlay" onClick={() => closePanel()}>
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
           >
+            <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
               <div className="section-header-copy">
-                <p className="eyebrow">Monthly progress</p>
-                <h3 className="section-title">{selectedPeriodLabel}</h3>
+                <p className="eyebrow">Event members</p>
+                <h3 className="section-title">Members</h3>
               </div>
-              <div className="period-controls">
-                <button
-                  type="button"
-                  className="topbar-action-button"
-                  onClick={goToOlderMonth}
-                  disabled={selectedPeriodIndex >= fundPeriods.length - 1}
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="topbar-action-button"
-                  onClick={goToNewerMonth}
-                  disabled={selectedPeriodIndex <= 0}
-                  aria-label="Next month"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-            <label className="stack-xs">
-              <span className="field-label">Selected month</span>
-              <select
-                className="field-input"
-                value={selectedPeriodKey}
-                onChange={(event) => setSelectedPeriodKey(event.target.value)}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  closePanel()
+                }}
               >
-                {fundPeriods.map((period) => (
-                  <option key={periodKey(period)} value={periodKey(period)}>
-                    {formatPeriodLabel(period)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="progress-meta">
-              <span className="field-label">
-                {monthlyProgress.paidCount}/{monthlyProgress.totalMembers} paid
-              </span>
-              <span className="field-label">
-                {Math.round(monthlyProgress.percentage)}%
-              </span>
+                Close
+              </button>
             </div>
-            <div className="progress-track" aria-hidden="true">
-              <div
-                className={
-                  monthlyProgress.percentage === 100
-                    ? 'progress-fill is-complete'
-                    : 'progress-fill'
-                }
-                style={{ width: `${monthlyProgress.percentage}%` }}
-              />
-            </div>
-          </section>
 
-          <section
-            className="glass-card panel stack-md fade-in-up"
-            style={{ animationDelay: '0.15s' }}
+            <div className="stack-sm">
+              {detail.subscribers.map((subscriber) => (
+                <EventMemberCard
+                  key={subscriber.user_id}
+                  subscriber={subscriber}
+                  canManageMembers={Boolean(canManageMembers)}
+                  isAdmin={profile?.role === 'admin'}
+                  isCurrentUser={subscriber.user_id === user.id}
+                  activeAction={activeAction}
+                  coCaptainCount={coCaptainCount}
+                  onMakeCaptain={() =>
+                    void handleAction('make-captain', subscriber.user_id)
+                  }
+                  onMakeCoCaptain={() =>
+                    void handleAction('make-co-captain', subscriber.user_id)
+                  }
+                  onMakeMember={() =>
+                    void handleAction('make-member', subscriber.user_id)
+                  }
+                  onRemove={() => void handleAction('remove', subscriber.user_id)}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {activePanel === 'leaderboard' ? (
+        <section className="drawer-overlay" onClick={() => closePanel()}>
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
           >
+            <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
               <div className="section-header-copy">
-                <p className="eyebrow">Payment status</p>
-                <h3 className="section-title">Pending first, paid after</h3>
-              </div>
-              <span className="status-chip">{fundStatusItems.length}</span>
-            </div>
-            {fundStatusItems.length === 0 ? (
-              <div className="empty-state">
-                <h4 className="empty-state-title">No members in this event yet</h4>
-              </div>
-            ) : (
-              <div className="stack-sm">
-                {fundStatusItems.map((item) => (
-                  <article key={item.member.user_id} className="fund-status-card">
-                    <div className="member-row">
-                      <MemberAvatar member={item.member} />
-                      <div className="stack-xs">
-                        <strong className="info-value">
-                          {getMemberName(item.member)}
-                        </strong>
-                        <div className="member-card-meta">
-                          <span className="event-badge">
-                            {formatEventRole(item.member.event_role)}
-                          </span>
-                          {item.member.profiles.role === 'admin' ? (
-                            <span className="event-badge">Admin</span>
-                          ) : null}
-                          <span className="event-badge event-badge-period">
-                            {selectedPeriodLabel}
-                          </span>
-                        </div>
-                        <span className="field-label">
-                          Status: {selectedPeriodLabel}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="fund-status-aside">
-                      {item.status === 'paid' ? (
-                        <div className="payment-state payment-state-paid">
-                          <CheckCircle2 size={16} />
-                          <span>{formatMoney(Number(item.payment?.amount ?? 0))}</span>
-                        </div>
-                      ) : (
-                        <div className="payment-state payment-state-pending">
-                          <Clock3 size={16} />
-                          <span>Pending</span>
-                        </div>
-                      )}
-                      {canRunModules && item.status === 'pending' ? (
-                        <button
-                          type="button"
-                          className="primary-button"
-                          onClick={() => openPaymentDrawer(item.member.user_id)}
-                          disabled={activeAction === `payment:${item.member.user_id}`}
-                        >
-                          {formatMoney(DEFAULT_MONTHLY_AMOUNT)}
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section
-            className="glass-card panel stack-md fade-in-up"
-            style={{ animationDelay: '0.2s' }}
-          >
-            <div className="split-header">
-              <div className="section-header-copy">
-                <p className="eyebrow">Members</p>
+                <p className="eyebrow">Fund tracker</p>
                 <h3 className="section-title">Contribution leaderboard</h3>
               </div>
-              <span className="status-chip">{leaderboard.length}</span>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  closePanel()
+                }}
+              >
+                Close
+              </button>
             </div>
             {leaderboard.length === 0 ? (
               <div className="empty-state">
@@ -547,7 +852,10 @@ function EventDetailPage() {
                     onClick={() => setHistoryUserId(entry.member.user_id)}
                   >
                     <div className="member-row">
-                      <MemberAvatar member={entry.member} highlight={index === 0} />
+                      <MemberAvatar
+                        member={entry.member}
+                        highlight={index === 0}
+                      />
                       <div className="stack-xs">
                         <strong className="info-value">
                           {getMemberName(entry.member)}
@@ -567,23 +875,17 @@ function EventDetailPage() {
                 ))}
               </div>
             )}
-          </section>
+          </div>
         </section>
       ) : null}
 
-      {event?.type === 'random_picker' ? (
-        <RandomPickerModule
-          detail={detail}
-          billAmount={billAmount}
-          setBillAmount={setBillAmount}
-          canSpin={Boolean(canRunModules)}
-          activeAction={activeAction}
-          onSpin={(submitEvent) => void handleSpin(submitEvent)}
-        />
-      ) : null}
-
-      {isDrawerOpen ? (
-        <section className="drawer-overlay" onClick={() => setIsDrawerOpen(false)}>
+      {activePanel === 'event-details' && detail.event ? (
+        <section
+          className="drawer-overlay"
+          onClick={() => {
+            closePanel()
+          }}
+        >
           <div
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
@@ -591,33 +893,196 @@ function EventDetailPage() {
             <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
               <div className="section-header-copy">
-                <p className="eyebrow">Member management</p>
-                <h3 className="section-title">Captain and admin controls</h3>
+                <p className="eyebrow">Event details</p>
+                <h3 className="section-title">{detail.event.title}</h3>
               </div>
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => setIsDrawerOpen(false)}
+                onClick={() => closePanel()}
               >
                 Close
               </button>
             </div>
 
-            <div className="stack-sm">
-              {detail.subscribers.map((subscriber) => (
-                <MemberManagementCard
-                  key={subscriber.user_id}
-                  subscriber={subscriber}
-                  canManageMembers={Boolean(canManageMembers)}
-                  isAdmin={profile?.role === 'admin'}
-                  isCurrentUser={subscriber.user_id === user.id}
-                  activeAction={activeAction}
-                  onPromote={() => void handleAction('promote', subscriber.user_id)}
-                  onDemote={() => void handleAction('demote', subscriber.user_id)}
-                  onRemove={() => void handleAction('remove', subscriber.user_id)}
-                />
-              ))}
-            </div>
+              {!isEditingEvent && (
+                <>
+                  <p className="section-note">
+                    {detail.event.description || 'No description added for this event yet.'}
+                  </p>
+                  <div className="info-grid">
+                    <InfoItem
+                      label="Type"
+                      value={formatEventType(detail.event.type)}
+                    />
+                    <InfoItem
+                      label="Privacy"
+                      value={formatVisibility(detail.event.visibility)}
+                    />
+                    <InfoItem
+                      label="Date"
+                      value={
+                        detail.event.event_date
+                          ? new Date(detail.event.event_date).toLocaleDateString()
+                          : 'Unknown'
+                      }
+                    />
+                    <InfoItem
+                      label="Status"
+                      value={detail.event.status ?? 'Unknown'}
+                    />
+                    <InfoItem
+                      label="Members"
+                      value={String(detail.subscribers.length)}
+                    />
+                    {detail.event.type === 'fund_tracker' ? (
+                      <>
+                        <InfoItem
+                          label="Target"
+                          value={
+                            detail.event.target_amount
+                              ? formatMoney(detail.event.target_amount)
+                              : 'No target'
+                          }
+                        />
+                        <InfoItem
+                          label="Monthly default"
+                          value={
+                            detail.event.monthly_default_amount
+                              ? formatMoney(detail.event.monthly_default_amount)
+                              : 'Not set'
+                          }
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                  {canEditEvent && (
+                    <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => {
+                          setIsEditingEvent(true)
+                          setEditTitle(detail.event?.title ?? '')
+                          setEditDescription(detail.event?.description ?? '')
+                          setEditEventDate(detail.event?.event_date.split('T')[0] ?? '')
+                          setEditVisibility(detail.event?.visibility ?? 'public')
+                          setEditTargetAmount(
+                            detail.event.type === 'fund_tracker' &&
+                              detail.event.target_amount
+                              ? String(detail.event.target_amount)
+                              : '',
+                          )
+                          setEditMonthlyDefaultAmount(
+                            detail.event.type === 'fund_tracker' &&
+                              detail.event.monthly_default_amount
+                              ? String(detail.event.monthly_default_amount)
+                              : '',
+                          )
+                        }}
+                      >
+                        Edit event
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              {isEditingEvent && (
+                <form className="stack-md" onSubmit={handleEventUpdate}>
+                  <label className="stack-xs">
+                    <span className="field-label">Title</span>
+                    <input
+                      required
+                      type="text"
+                      className="field-input"
+                      value={editTitle}
+                      onChange={(event) => setEditTitle(event.target.value)}
+                    />
+                  </label>
+
+                  <label className="stack-xs">
+                    <span className="field-label">Description</span>
+                    <textarea
+                      className="field-input field-textarea"
+                      value={editDescription}
+                      onChange={(event) => setEditDescription(event.target.value)}
+                    />
+                  </label>
+
+                  <div className="create-form-row">
+                    <label className="stack-xs">
+                      <span className="field-label">Event date</span>
+                      <input
+                        required
+                        type="date"
+                        className="field-input"
+                        value={editEventDate}
+                        onChange={(event) => setEditEventDate(event.target.value)}
+                      />
+                    </label>
+
+                    <label className="stack-xs">
+                      <span className="field-label">Privacy</span>
+                      <select
+                        className="field-input"
+                        value={editVisibility}
+                        onChange={(event) =>
+                          setEditVisibility(event.target.value as EventVisibility)
+                        }
+                      >
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {detail.event.type === 'fund_tracker' ? (
+                    <div className="create-form-row">
+                      <label className="stack-xs">
+                        <span className="field-label">Target amount</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="field-input"
+                          value={editTargetAmount}
+                          onChange={(event) => setEditTargetAmount(event.target.value)}
+                        />
+                      </label>
+                      <label className="stack-xs">
+                        <span className="field-label">Monthly(Optional)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="field-input"
+                          value={editMonthlyDefaultAmount}
+                          onChange={(event) =>
+                            setEditMonthlyDefaultAmount(event.target.value)
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <div className="actions-row">
+                    <button
+                      type="submit"
+                      className="primary-button"
+                      disabled={activeAction === 'event-update'}
+                    >
+                      {activeAction === 'event-update' ? 'Saving...' : 'Save changes'}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setIsEditingEvent(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
           </div>
         </section>
       ) : null}
@@ -654,7 +1119,7 @@ function EventDetailPage() {
                 <span className="field-label">Amount</span>
                 <input
                   type="number"
-                  min={DEFAULT_MONTHLY_AMOUNT}
+                  min={paymentMinAmount}
                   step="0.01"
                   className="field-input"
                   value={paymentAmount}
@@ -703,7 +1168,7 @@ function EventDetailPage() {
                       {formatEventRole(selectedHistoryMember.event_role)}
                     </span>
                     {selectedHistoryMember.profiles.role === 'admin' ? (
-                      <span className="event-badge">Admin</span>
+                      <span className="event-badge">App Admin</span>
                     ) : null}
                   </div>
                 </div>
@@ -739,6 +1204,77 @@ function EventDetailPage() {
               </div>
             </div>
             <ContributionTimeline items={historyTimeline} />
+          </div>
+        </section>
+      ) : null}
+
+      <button
+        type="button"
+        className="fab-button event-fab-trigger"
+        aria-label="Open event actions"
+        aria-expanded={isMenuOpen}
+        onClick={() => setIsMenuOpen((current) => !current)}
+      >
+        <Menu size={20} />
+      </button>
+
+      {isMenuOpen ? (
+        <div className="event-fab-menu-overlay" onClick={closeFloatingMenu} />
+      ) : null}
+
+      {isMenuOpen ? (
+        <div className="event-fab-menu" role="menu" aria-label="Event actions">
+          {menuActionItems.map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              className={`event-fab-menu-item${item.isDanger ? ' is-danger' : ''}`}
+              onClick={() => handleFloatingMenuSelect(item.type)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {isDeleteConfirmOpen ? (
+        <section
+          className="drawer-overlay"
+          onClick={closeDeleteConfirmation}
+        >
+          <div
+            className="glass-card create-drawer delete-event-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="section-header-copy">
+              <p className="eyebrow">Danger zone</p>
+              <h3 className="section-title">Delete this event?</h3>
+            </div>
+            <p className="event-detail-meta">
+              This will remove the event and all related records (members,
+              payments, and history) permanently.
+            </p>
+            <div className="actions-row">
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => {
+                  void handleDeleteEvent()
+                }}
+                disabled={activeAction === 'delete-event'}
+              >
+                {activeAction === 'delete-event' ? 'Deleting...' : 'Confirm'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeDeleteConfirmation}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </section>
       ) : null}
@@ -780,75 +1316,16 @@ function EventDetailPage() {
   }
 }
 
-function SubscriberPreview({
-  subscriber,
-  isCurrentUser,
-}: {
-  subscriber: EventSubscriberWithProfile
-  isCurrentUser: boolean
-}) {
-  return (
-    <article className="member-card">
-      <div className="member-row">
-        <MemberAvatar member={subscriber} />
-        <div className="stack-xs">
-          <strong className="info-value">{getMemberName(subscriber)}</strong>
-          <span className="field-label">{subscriber.profiles.email}</span>
-        </div>
-      </div>
-      <div className="member-card-meta">
-        {isCurrentUser ? <span className="event-badge">You</span> : null}
-        {subscriber.profiles.role === 'admin' ? (
-          <span className="event-badge">Admin</span>
-        ) : null}
-        <span className="event-badge event-badge-strong">
-          {formatEventRole(subscriber.event_role)}
-        </span>
-      </div>
-    </article>
-  )
-}
-
-function MemberAvatar({
-  member,
-  highlight = false,
-}: {
-  member: {
-    profiles: {
-      full_name: string | null
-      email: string
-    }
-  }
-  highlight?: boolean
-}) {
-  const name = getMemberName(member)
-
-  return (
-    <div className="avatar-shell">
-      <div
-        className="member-avatar"
-        style={{ backgroundImage: getAvatarGradient(name) }}
-        aria-hidden="true"
-      >
-        {name.charAt(0).toUpperCase()}
-      </div>
-      {highlight ? (
-        <span className="avatar-crown" aria-hidden="true">
-          <Crown size={12} />
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-function MemberManagementCard({
+function EventMemberCard({
   subscriber,
   canManageMembers,
   isAdmin,
   isCurrentUser,
   activeAction,
-  onPromote,
-  onDemote,
+  coCaptainCount,
+  onMakeCaptain,
+  onMakeCoCaptain,
+  onMakeMember,
   onRemove,
 }: {
   subscriber: EventSubscriberWithProfile
@@ -856,13 +1333,19 @@ function MemberManagementCard({
   isAdmin: boolean
   isCurrentUser: boolean
   activeAction: string | null
-  onPromote: () => void
-  onDemote: () => void
+  coCaptainCount: number
+  onMakeCaptain: () => void
+  onMakeCoCaptain: () => void
+  onMakeMember: () => void
   onRemove: () => void
 }) {
-  const canPromote =
-    canManageMembers && subscriber.event_role === 'member' && !isCurrentUser
-  const canDemote =
+  const canMakeCaptain =
+    canManageMembers && subscriber.event_role !== 'captain' && !isCurrentUser
+  const canMakeCoCaptain =
+    canManageMembers &&
+    (subscriber.event_role === 'member' || subscriber.event_role === 'co-captain') &&
+    !isCurrentUser
+  const canMakeMember =
     canManageMembers &&
     subscriber.event_role === 'co-captain' &&
     (!isCurrentUser || isAdmin)
@@ -870,263 +1353,97 @@ function MemberManagementCard({
     canManageMembers &&
     subscriber.event_role !== 'captain' &&
     (!isCurrentUser || isAdmin)
+  const canShowMenu = canMakeCaptain || canMakeCoCaptain || canMakeMember || canRemove
 
   return (
     <article className="admin-user-card">
       <div className="member-row">
-        <MemberAvatar member={subscriber} />
+        <MemberAvatar
+          member={subscriber}
+          highlight={
+            subscriber.event_role === 'captain' ||
+            subscriber.event_role === 'co-captain'
+          }
+        />
         <div className="stack-xs">
           <strong className="info-value">{getMemberName(subscriber)}</strong>
           <span className="field-label">{subscriber.profiles.email}</span>
           <span className="field-label">
-            Blood group: {subscriber.profiles.blood_group ?? 'Not set'}
+            Blood group: {subscriber.profiles.blood_group || 'Not set'}
           </span>
-          <span className="field-label">
-            Event role: {formatEventRole(subscriber.event_role)}
-          </span>
+          {isCurrentUser ? <span className="event-badge">You</span> : null}
+          {subscriber.profiles.role === 'admin' ? (
+            <span className="event-badge event-badge-strong">App Admin</span>
+          ) : null}
         </div>
       </div>
-      <div className="actions-row">
-        {canPromote ? (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={onPromote}
-            disabled={activeAction === `promote:${subscriber.user_id}`}
-          >
-            {activeAction === `promote:${subscriber.user_id}`
-              ? 'Promoting...'
-              : 'Promote'}
-          </button>
-        ) : null}
-        {canDemote ? (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onDemote}
-            disabled={activeAction === `demote:${subscriber.user_id}`}
-          >
-            {activeAction === `demote:${subscriber.user_id}`
-              ? 'Demoting...'
-              : 'Demote'}
-          </button>
-        ) : null}
-        {canRemove ? (
-          <button
-            type="button"
-            className="danger-button"
-            onClick={onRemove}
-            disabled={activeAction === `remove:${subscriber.user_id}`}
-          >
-            {activeAction === `remove:${subscriber.user_id}`
-              ? 'Removing...'
-              : 'Remove'}
-          </button>
-        ) : null}
-      </div>
-    </article>
-  )
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="info-card">
-      <span className="info-label">{label}</span>
-      <strong className="info-value">{value}</strong>
-    </div>
-  )
-}
-
-function ContributionTimeline({
-  items,
-}: {
-  items: ReturnType<typeof buildMemberTimeline>
-}) {
-  if (items.length === 0) {
-    return (
-      <div className="empty-state">
-        <h4 className="empty-state-title">No recorded payments yet</h4>
-      </div>
-    )
-  }
-
-  return (
-    <div className="history-timeline contribution-timeline">
-      {items.map((item) => (
-        <article
-          key={periodKey(item.period)}
-          className={
-            item.status === 'paid'
-              ? 'timeline-card timeline-card-paid'
-              : 'timeline-card'
-          }
-        >
-          <div className="history-dot" />
-          <div className="history-content">
-            <div className="split-header">
-              <strong className="info-value">{formatPeriodLabel(item.period)}</strong>
-              <span
-                className={
-                  item.status === 'paid'
-                    ? 'event-badge event-badge-strong'
-                    : 'event-badge'
+      {canShowMenu ? (
+        <details className="admin-member-menu">
+          <summary className="admin-member-menu-trigger" aria-label="Member actions">
+            ⋮
+          </summary>
+          <div className="admin-member-menu-panel">
+            {canMakeCaptain ? (
+              <button
+                type="button"
+                className="secondary-button admin-member-menu-button"
+                onClick={onMakeCaptain}
+                disabled={activeAction === `make-captain:${subscriber.user_id}`}
+              >
+                {activeAction === `make-captain:${subscriber.user_id}`
+                  ? 'Making captain...'
+                  : 'Make Captain'}
+              </button>
+            ) : null}
+            {canMakeCoCaptain ? (
+              <button
+                type="button"
+                className="secondary-button admin-member-menu-button"
+                onClick={onMakeCoCaptain}
+                disabled={
+                  activeAction === `make-co-captain:${subscriber.user_id}` ||
+                  subscriber.event_role === 'co-captain' ||
+                  (subscriber.event_role !== 'co-captain' && coCaptainCount >= 2)
                 }
               >
-                {item.status === 'paid' ? 'Paid' : 'Pending'}
-              </span>
-            </div>
-            <div className="meta-row">
-              <span className="field-label">
-                Amount:{' '}
-                {item.payment ? formatMoney(Number(item.payment.amount)) : formatMoney(0)}
-              </span>
-              <span className="field-label">
-                Date:{' '}
-                {item.payment
-                  ? new Date(item.payment.created_at).toLocaleDateString()
-                  : 'Not recorded'}
-              </span>
-            </div>
+                {activeAction === `make-co-captain:${subscriber.user_id}`
+                  ? 'Promoting...'
+                  : subscriber.event_role === 'co-captain'
+                    ? 'Already co-captain'
+                    : coCaptainCount >= 2
+                      ? 'Co-captain limit reached'
+                      : 'Make Co-captain'}
+              </button>
+            ) : null}
+            {canMakeMember ? (
+              <button
+                type="button"
+                className="secondary-button admin-member-menu-button"
+                onClick={onMakeMember}
+                disabled={activeAction === `make-member:${subscriber.user_id}`}
+              >
+                {activeAction === `make-member:${subscriber.user_id}`
+                  ? 'Updating...'
+                  : 'Make Member'}
+              </button>
+            ) : null}
+            {canRemove ? (
+              <button
+                type="button"
+                className="danger-button admin-member-menu-button"
+                onClick={onRemove}
+                disabled={activeAction === `remove:${subscriber.user_id}`}
+              >
+                {activeAction === `remove:${subscriber.user_id}`
+                  ? 'Removing...'
+                  : 'Remove'}
+              </button>
+            ) : null}
           </div>
-        </article>
-      ))}
-    </div>
+        </details>
+      ) : null}
+    </article>
   )
-}
-
-function RandomPickerModule({
-  detail,
-  billAmount,
-  setBillAmount,
-  canSpin,
-  activeAction,
-  onSpin,
-}: {
-  detail: EventDetailData
-  billAmount: string
-  setBillAmount: (value: string) => void
-  canSpin: boolean
-  activeAction: string | null
-  onSpin: (event: FormEvent<HTMLFormElement>) => void
-}) {
-  return (
-    <section className="glass-card panel stack-md">
-      <div className="section-header-copy">
-        <p className="eyebrow">Random picker</p>
-        <h3 className="section-title">Spin to choose who pays</h3>
-      </div>
-
-      <form className="stack-md" onSubmit={onSpin}>
-        <label className="stack-xs">
-          <span className="field-label">Bill amount</span>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            className="field-input"
-            value={billAmount}
-            onChange={(event) => setBillAmount(event.target.value)}
-            placeholder="500"
-          />
-        </label>
-        <button
-          type="submit"
-          className="primary-button spin-button"
-          disabled={!canSpin || activeAction === 'spin'}
-        >
-          {activeAction === 'spin' ? 'Picking...' : 'Spin / Pick'}
-        </button>
-      </form>
-
-      <div className="stack-sm">
-        {detail.activities.length === 0 ? (
-          <div className="empty-state">
-            <h4 className="empty-state-title">No random picks yet</h4>
-          </div>
-        ) : (
-          detail.activities.map((activity) => {
-            const winnerId =
-              activity.payload &&
-              typeof activity.payload === 'object' &&
-              'winner' in activity.payload
-                ? String(activity.payload.winner)
-                : null
-            const amount =
-              activity.payload &&
-              typeof activity.payload === 'object' &&
-              'amount' in activity.payload
-                ? Number(activity.payload.amount)
-                : 0
-            const winner = detail.subscribers.find(
-              (subscriber) => subscriber.user_id === winnerId,
-            )
-
-            return (
-              <article key={activity.id} className="event-card">
-                <div className="split-header">
-                  <strong className="info-value">
-                    {winner?.profiles.full_name || 'Unknown member'}
-                  </strong>
-                  <span className="event-badge">{formatMoney(amount)}</span>
-                </div>
-                <span className="field-label">
-                  {new Date(activity.created_at).toLocaleString()}
-                </span>
-              </article>
-            )
-          })
-        )}
-      </div>
-    </section>
-  )
-}
-
-function formatEventType(type?: string) {
-  if (type === 'general') {
-    return 'General'
-  }
-
-  if (type === 'random_picker') {
-    return 'Random Picker'
-  }
-
-  if (type === 'fund_tracker') {
-    return 'Fund Tracker'
-  }
-
-  return 'Unknown'
-}
-
-function formatVisibility(visibility?: string) {
-  if (visibility === 'private') {
-    return 'Private'
-  }
-
-  if (visibility === 'public') {
-    return 'Public'
-  }
-
-  return 'Unknown'
-}
-
-function formatEventRole(role: EventSubscriberWithProfile['event_role']) {
-  if (role === 'co-captain') {
-    return 'Co-Captain'
-  }
-
-  if (role === 'captain') {
-    return 'Captain'
-  }
-
-  return 'Member'
-}
-
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-BD', {
-    style: 'currency',
-    currency: 'BDT',
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(amount) ? amount : 0)
 }
 
 function useAnimatedNumber(target: number) {

@@ -9,9 +9,9 @@ export type Database = {
         Update: { id?: string, full_name?: string | null, email?: string, role?: 'admin' | 'member', is_approved?: boolean | null, blood_group?: string | null, created_at?: string }
       }
       events: {
-        Row: { id: string, title: string, description: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date: string, status: 'open' | 'active' | 'completed', visibility: 'public' | 'private', target_amount: number | null, created_by: string, created_at: string }
-        Insert: { id?: string, title: string, description?: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, created_by: string, created_at?: string }
-        Update: { id?: string, title?: string, description?: string | null, type?: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, created_by?: string, created_at?: string }
+        Row: { id: string, title: string, description: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date: string, status: 'open' | 'active' | 'completed', visibility: 'public' | 'private', target_amount: number | null, monthly_default_amount: number | null, created_by: string, created_at: string }
+        Insert: { id?: string, title: string, description?: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, monthly_default_amount?: number | null, created_by: string, created_at?: string }
+        Update: { id?: string, title?: string, description?: string | null, type?: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, monthly_default_amount?: number | null, created_by?: string, created_at?: string }
       }
       event_subscribers: {
         Row: { event_id: string, user_id: string, event_role: 'captain' | 'co-captain' | 'member', joined_at: string }
@@ -60,6 +60,7 @@ export type Database = {
           p_visibility: 'public' | 'private'
           p_event_date: string
           p_target_amount?: number | null
+          p_monthly_default_amount?: number | null
         }
         Returns: Database['public']['Tables']['events']['Row']
       }
@@ -70,6 +71,13 @@ export type Database = {
         Returns: Database['public']['Tables']['event_subscribers']['Row']
       }
       promote_event_member_to_cocaptain: {
+        Args: {
+          p_event_id: string
+          p_user_id: string
+        }
+        Returns: Database['public']['Tables']['event_subscribers']['Row']
+      }
+      transfer_event_captain: {
         Args: {
           p_event_id: string
           p_user_id: string

@@ -20,6 +20,17 @@ type CreateEventInput = {
   eventDate: string
   visibility: EventVisibility
   targetAmount?: number | null
+  monthlyDefaultAmount?: number | null
+}
+
+type UpdateEventInput = {
+  eventId: string
+  title: string
+  description: string | null
+  eventDate: string
+  visibility: EventVisibility
+  targetAmount?: number | null
+  monthlyDefaultAmount?: number | null
 }
 
 export type DashboardData = {
@@ -149,6 +160,7 @@ export async function createEventWithCaptain({
   eventDate,
   visibility,
   targetAmount,
+  monthlyDefaultAmount,
 }: CreateEventInput) {
   const { data, error } = await supabase.rpc('create_event_with_captain', {
     p_title: title,
@@ -157,6 +169,7 @@ export async function createEventWithCaptain({
     p_event_date: eventDate,
     p_visibility: visibility,
     p_target_amount: targetAmount ?? null,
+    p_monthly_default_amount: monthlyDefaultAmount ?? null,
   })
 
   if (error) {
@@ -272,6 +285,73 @@ export async function promoteEventMemberToCoCaptain(
       p_user_id: userId,
     },
   )
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function deleteEvent(eventId: string) {
+  const { error } = await supabase.from('events').delete().eq('id', eventId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function transferEventCaptain(eventId: string, userId: string) {
+  const { data, error } = await supabase.rpc('transfer_event_captain', {
+    p_event_id: eventId,
+    p_user_id: userId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function updateEvent(input: UpdateEventInput) {
+  const {
+    eventId,
+    title,
+    description,
+    eventDate,
+    visibility,
+    targetAmount,
+    monthlyDefaultAmount,
+  } = input
+
+  const payload: Partial<{
+    title: string
+    description: string | null
+    event_date: string
+    visibility: EventVisibility
+    target_amount: number | null
+    monthly_default_amount: number | null
+  }> = {
+    title,
+    description,
+    event_date: eventDate,
+    visibility,
+  }
+
+  if (targetAmount !== undefined) {
+    payload.target_amount = targetAmount
+  }
+  if (monthlyDefaultAmount !== undefined) {
+    payload.monthly_default_amount = monthlyDefaultAmount
+  }
+
+  const { data, error } = await supabase
+    .from('events')
+    .update(payload)
+    .eq('id', eventId)
+    .select()
+    .single()
 
   if (error) {
     throw error

@@ -24,6 +24,7 @@ create table if not exists public.events (
   status text check (status in ('open', 'active', 'completed')) default 'open',
   visibility text check (visibility in ('public', 'private')) default 'private',
   target_amount numeric,
+  monthly_default_amount numeric,
   created_by uuid references public.profiles(id) not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -50,6 +51,9 @@ create table if not exists public.event_funds (
 
 alter table public.events
   add column if not exists target_amount numeric;
+
+alter table public.events
+  add column if not exists monthly_default_amount numeric;
 
 alter table public.events
   add column if not exists event_date date;
@@ -279,7 +283,8 @@ create or replace function public.create_event_with_captain(
   p_type text,
   p_visibility text,
   p_event_date date,
-  p_target_amount numeric default null
+  p_target_amount numeric default null,
+  p_monthly_default_amount numeric default null
 )
 returns public.events
 language plpgsql
@@ -319,6 +324,10 @@ begin
     raise exception 'Target amount must be greater than zero';
   end if;
 
+  if p_monthly_default_amount is not null and p_monthly_default_amount <= 0 then
+    raise exception 'Monthly default amount must be greater than zero';
+  end if;
+
   insert into public.events (
     title,
     description,
@@ -326,6 +335,7 @@ begin
     event_date,
     visibility,
     target_amount,
+    monthly_default_amount,
     created_by
   )
   values (
@@ -335,6 +345,7 @@ begin
     p_event_date,
     p_visibility,
     p_target_amount,
+    p_monthly_default_amount,
     auth.uid()
   )
   returning * into created_event;
@@ -405,19 +416,96 @@ security definer
 set search_path = public
 as $$
 declare
+  co_captain_count integer;
   updated_subscription public.event_subscribers;
+  target_subscription public.event_subscribers;
 begin
   if not public.is_admin() and not public.has_event_role(p_event_id, array['captain']) then
     raise exception 'Only captains or app admins can promote members';
   end if;
 
+  select *
+    into target_subscription
+    from public.event_subscribers
+    where event_id = p_event_id
+      and user_id = p_user_id;
+
+  if target_subscription is null then
+    raise exception 'Subscriber not found';
+  end if;
+
+  if target_subscription.event_role = 'captain' then
+    raise exception 'Captains cannot be promoted';
+  end if;
+
+  select count(*)
+    into co_captain_count
+    from public.event_subscribers
+    where event_id = p_event_id and event_role = 'co-captain';
+
+  if target_subscription.event_role <> 'co-captain' and co_captain_count >= 2 then
+    raise exception 'Maximum of 2 co-captains is allowed for an event';
+  end if;
+
   update public.event_subscribers
-  set event_role = 'co-captain'
-  where event_id = p_event_id and user_id = p_user_id and event_role <> 'captain'
+    set event_role = 'co-captain'
+  where event_id = p_event_id
+    and user_id = p_user_id
   returning * into updated_subscription;
 
   if updated_subscription is null then
     raise exception 'Subscriber not found or cannot be promoted';
+  end if;
+
+  return updated_subscription;
+end;
+$$;
+
+create or replace function public.transfer_event_captain(
+  p_event_id uuid,
+  p_user_id uuid
+)
+returns public.event_subscribers
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_subscription public.event_subscribers;
+  updated_subscription public.event_subscribers;
+begin
+  if not public.is_admin() and not public.has_event_role(p_event_id, array['captain']) then
+    raise exception 'Only captains or app admins can transfer captaincy';
+  end if;
+
+  select *
+    into target_subscription
+    from public.event_subscribers
+    where event_id = p_event_id and user_id = p_user_id;
+
+  if target_subscription is null then
+    raise exception 'Subscriber not found';
+  end if;
+
+  if target_subscription.event_role = 'captain' then
+    raise exception 'Target is already the captain';
+  end if;
+
+  update public.event_subscribers
+    set event_role = 'member'
+  where event_id = p_event_id and event_role = 'captain' and user_id <> p_user_id;
+
+  update public.event_subscribers
+    set event_role = 'captain'
+  where event_id = p_event_id and user_id = p_user_id
+  returning * into updated_subscription;
+
+  if updated_subscription is null then
+    raise exception 'Subscriber not found';
+  end if;
+
+  if updated_subscription.event_role <> 'captain' then
+    raise exception 'Only event members can be promoted to captain';
   end if;
 
   return updated_subscription;
@@ -531,10 +619,6 @@ begin
     raise exception 'Only captains, co-captains, or app admins can record payments';
   end if;
 
-  if p_amount < 3000 then
-    raise exception 'Amount must be at least 3000';
-  end if;
-
   if p_month < 1 or p_month > 12 then
     raise exception 'Month must be between 1 and 12';
   end if;
@@ -550,6 +634,14 @@ begin
 
   if target_event is null or target_event.type <> 'fund_tracker' then
     raise exception 'Event is not a fund tracker';
+  end if;
+
+  if p_amount <= 0 then
+    raise exception 'Amount must be greater than zero';
+  end if;
+
+  if target_event.monthly_default_amount is not null and p_amount < target_event.monthly_default_amount then
+    raise exception 'Amount must be at least monthly default amount';
   end if;
 
   select *
@@ -663,6 +755,7 @@ drop policy if exists "Users can create their own profile" on public.profiles;
 drop policy if exists "Admins have full access to events" on public.events;
 drop policy if exists "Users can view public events or ones they are subscribed to" on public.events;
 drop policy if exists "Captains and Co-Captains can update events" on public.events;
+drop policy if exists "Captains can update events" on public.events;
 drop policy if exists "Captains and Co-Captains can delete events" on public.events;
 drop policy if exists "Approved users can create events" on public.events;
 
@@ -700,9 +793,9 @@ create policy "Users can view public events or ones they are subscribed to" on p
     visibility = 'public' or public.is_event_subscriber(events.id)
   );
 
-create policy "Captains and Co-Captains can update events" on public.events
+create policy "Captains can update events" on public.events
   for update using (
-    public.has_event_role(events.id, array['captain', 'co-captain'])
+    public.has_event_role(events.id, array['captain'])
   );
 
 create policy "Captains and Co-Captains can delete events" on public.events
@@ -776,9 +869,10 @@ create policy "Captains and Co-Captains can insert activities" on public.event_a
 grant execute on function public.update_own_profile(text, text) to authenticated;
 grant execute on function public.approve_user(uuid) to authenticated;
 grant execute on function public.promote_user_to_admin(uuid) to authenticated;
-grant execute on function public.create_event_with_captain(text, text, text, text, date, numeric) to authenticated;
+grant execute on function public.create_event_with_captain(text, text, text, text, date, numeric, numeric) to authenticated;
 grant execute on function public.join_public_event(uuid) to authenticated;
 grant execute on function public.promote_event_member_to_cocaptain(uuid, uuid) to authenticated;
+grant execute on function public.transfer_event_captain(uuid, uuid) to authenticated;
 grant execute on function public.demote_event_member_to_member(uuid, uuid) to authenticated;
 grant execute on function public.remove_event_member(uuid, uuid) to authenticated;
 grant execute on function public.upsert_event_fund_payment(uuid, uuid, numeric, integer, integer) to authenticated;
