@@ -1168,7 +1168,7 @@ function EventDetailPage() {
                       {formatEventRole(selectedHistoryMember.event_role)}
                     </span>
                     {selectedHistoryMember.profiles.role === 'admin' ? (
-                      <span className="event-badge">App Admin</span>
+                      <span className="member-directory-role-badge">App Admin</span>
                     ) : null}
                   </div>
                 </div>
@@ -1373,7 +1373,7 @@ function EventMemberCard({
           </span>
           {isCurrentUser ? <span className="event-badge">You</span> : null}
           {subscriber.profiles.role === 'admin' ? (
-            <span className="event-badge event-badge-strong">App Admin</span>
+            <span className="member-directory-role-badge">App Admin</span>
           ) : null}
         </div>
       </div>

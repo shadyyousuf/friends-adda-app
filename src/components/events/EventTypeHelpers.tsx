@@ -56,19 +56,33 @@ export function formatEventRole(role: EventSubscriberWithProfile['event_role']) 
   return 'Member'
 }
 
+type MemberAvatarInput = {
+  full_name: string | null
+  email: string
+} & {
+  profiles?: {
+    full_name: string | null
+    email: string
+  }
+}
+
 export function MemberAvatar({
   member,
   highlight = false,
+  avatarText,
 }: {
-  member: {
-    profiles: {
-      full_name: string | null
-      email: string
-    }
-  }
+  member: MemberAvatarInput
   highlight?: boolean
+  avatarText?: string | null
 }) {
-  const name = getMemberName(member)
+  const source = member.profiles ?? member
+  const name = getMemberName({
+    profiles: {
+      full_name: source.full_name,
+      email: source.email,
+    },
+  })
+  const displayText = avatarText?.trim() || name.charAt(0).toUpperCase()
 
   return (
     <div className="avatar-shell">
@@ -77,7 +91,7 @@ export function MemberAvatar({
         style={{ backgroundImage: getAvatarGradient(name) }}
         aria-hidden="true"
       >
-        {name.charAt(0).toUpperCase()}
+        {displayText}
       </div>
       {highlight ? (
         <span className="avatar-crown" aria-hidden="true">
@@ -175,7 +189,7 @@ export function SubscriberPreview({
       <div className="member-card-meta">
         {isCurrentUser ? <span className="event-badge">You</span> : null}
         {subscriber.profiles.role === 'admin' ? (
-          <span className="event-badge">Admin</span>
+          <span className="member-directory-role-badge">Admin</span>
         ) : null}
         <span className="event-badge event-badge-strong">
           {formatEventRole(subscriber.event_role)}

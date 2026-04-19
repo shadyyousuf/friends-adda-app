@@ -2,11 +2,16 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
+import {
+  MemberDirectoryCard,
+  type MemberDirectoryMenuAction,
+} from '../components/MemberDirectoryCard'
 import { useAuth } from '../components/AuthProvider'
-import { approvedProfilesQueryOptions } from '../utils/profile'
-import type { Database } from '../utils/supabase'
-
-type Profile = Database['public']['Tables']['profiles']['Row']
+import {
+  approvedProfilesQueryOptions,
+  promoteUserToAdmin,
+  removeUserFromApp,
+} from '../utils/profile'
 
 export const Route = createFileRoute('/members')({
   component: MembersPage,
@@ -15,6 +20,8 @@ export const Route = createFileRoute('/members')({
 function MembersPage() {
   const { user, profile, isLoading } = useAuth()
   const [query, setQuery] = useState('')
+  const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
+  const [memberActionError, setMemberActionError] = useState<string | null>(null)
   const deferredQuery = useDeferredValue(query)
   const membersQuery = useQuery({
     ...approvedProfilesQueryOptions(),
@@ -45,6 +52,43 @@ function MembersPage() {
 
     return haystack.includes(normalizedQuery)
   })
+
+  const canManageMembers = profile?.role === 'admin'
+
+  async function runMemberAction(
+    actionKey: string,
+    action: () => Promise<unknown>,
+    failureMessage: string,
+  ) {
+    setMemberActionError(null)
+    setActiveMemberAction(actionKey)
+    try {
+      await action()
+      await membersQuery.refetch()
+    } catch (error) {
+      setMemberActionError(
+        error instanceof Error ? error.message : failureMessage,
+      )
+    } finally {
+      setActiveMemberAction(null)
+    }
+  }
+
+  async function handlePromoteToAdmin(userId: string) {
+    await runMemberAction(
+      `promote:${userId}`,
+      () => promoteUserToAdmin(userId),
+      'Failed to promote user to admin.',
+    )
+  }
+
+  async function handleRemoveFromApp(userId: string) {
+    await runMemberAction(
+      `remove:${userId}`,
+      () => removeUserFromApp(userId),
+      'Failed to remove user from app.',
+    )
+  }
 
   if (isLoading) {
     return <AnimatedContentLoader isVisible mode="panel" />
@@ -89,6 +133,7 @@ function MembersPage() {
           />
         </label>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+        {memberActionError ? <p className="form-error">{memberActionError}</p> : null}
       </section>
 
       <section className="glass-card panel stack-md">
@@ -105,24 +150,37 @@ function MembersPage() {
           </div>
         ) : (
           <div className="stack-sm">
-            {filteredMembers.map((member) => (
-              <article key={member.id} className="member-directory-card">
-                <div className="stack-xs">
-                  <strong className="info-value">
-                    {member.full_name || 'Unnamed member'}
-                  </strong>
-                  <span className="field-label">{member.email}</span>
-                </div>
-                <div className="member-directory-meta">
-                  <span className="event-badge event-badge-strong">
-                    {member.blood_group || 'Blood group not set'}
-                  </span>
-                  <span className="field-label">
-                    {member.role === 'admin' ? 'App Admin' : 'Member'}
-                  </span>
-                </div>
-              </article>
-            ))}
+            {filteredMembers.map((member) => {
+              const menuActions: MemberDirectoryMenuAction[] = []
+
+              if (canManageMembers && member.role !== 'admin') {
+                menuActions.push({
+                  id: `promote:${member.id}`,
+                  label: 'Promote to Admin',
+                  loadingLabel: 'Promoting...',
+                  onClick: () => void handlePromoteToAdmin(member.id),
+                })
+              }
+
+              if (canManageMembers && member.id !== user.id) {
+                menuActions.push({
+                  id: `remove:${member.id}`,
+                  label: 'Remove from app',
+                  loadingLabel: 'Removing...',
+                  onClick: () => void handleRemoveFromApp(member.id),
+                  isDanger: true,
+                })
+              }
+
+              return (
+                <MemberDirectoryCard
+                  key={member.id}
+                  profile={member}
+                  menuActions={menuActions}
+                  activeAction={activeMemberAction}
+                />
+              )
+            })}
           </div>
         )}
       </section>

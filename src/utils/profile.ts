@@ -75,6 +75,21 @@ export async function promoteUserToAdmin(userId: string) {
   return data
 }
 
+export async function removeUserFromApp(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ is_approved: false })
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export async function listPendingProfiles() {
   const { data, error } = await supabase
     .from('profiles')

@@ -983,18 +983,25 @@ textarea:focus-visible {
   right: 0;
   top: 100%;
   margin-top: 0.35rem;
+  width: max-content;
   z-index: 3;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 0.3rem;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+  min-width: 11rem;
   display: none;
 }
 
 .admin-member-menu-panel .admin-member-menu-button {
   min-height: 2.35rem;
   padding-inline: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
 }
 
 .admin-member-menu[open] .admin-member-menu-panel {
@@ -1116,6 +1123,19 @@ textarea:focus-visible {
     transform 160ms ease,
     border-color 160ms ease,
     background 160ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+  width: 100%;
+}
+
+.event-fab-menu-item > span {
+  display: inline-block;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-fab-menu-item:hover,
@@ -1184,6 +1204,15 @@ textarea:focus-visible {
   gap: 0.45rem;
   justify-items: end;
   text-align: right;
+}
+
+.member-directory-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .history-timeline {

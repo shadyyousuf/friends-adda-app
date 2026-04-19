@@ -2,6 +2,10 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
+import {
+  MemberDirectoryCard,
+  type MemberDirectoryMenuAction,
+} from '../components/MemberDirectoryCard'
 import { signOut } from '../utils/auth'
 import {
   applyThemeMode,
@@ -12,12 +16,12 @@ import {
 import {
   approvedMemberProfilesQueryOptions,
   approveUser,
+  removeUserFromApp,
   pendingProfilesQueryOptions,
   profileKeys,
   promoteUserToAdmin,
   updateOwnProfile,
 } from '../utils/profile'
-import type { Database } from '../utils/supabase'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -33,6 +37,7 @@ function SettingsPage() {
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [adminError, setAdminError] = useState<string | null>(null)
+  const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '')
@@ -97,27 +102,38 @@ function SettingsPage() {
   }
 
   async function handleApprove(userId: string) {
-    setAdminError(null)
-
-    try {
-      await approveUser(userId)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: profileKeys.pending }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.approvedMembers }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.approved }),
-      ])
-    } catch (error) {
-      setAdminError(
-        error instanceof Error ? error.message : 'Failed to approve user.',
-      )
-    }
+    await runMemberAction(
+      `approve:${userId}`,
+      () => approveUser(userId),
+      'Failed to approve user.',
+    )
   }
 
   async function handlePromote(userId: string) {
-    setAdminError(null)
+    await runMemberAction(
+      `promote:${userId}`,
+      () => promoteUserToAdmin(userId),
+      'Failed to promote user.',
+    )
+  }
 
+  async function handleRemoveFromApp(userId: string) {
+    await runMemberAction(
+      `remove:${userId}`,
+      () => removeUserFromApp(userId),
+      'Failed to remove user from app.',
+    )
+  }
+
+  async function runMemberAction(
+    actionKey: string,
+    action: () => Promise<unknown>,
+    failureMessage: string,
+  ) {
+    setAdminError(null)
+    setActiveMemberAction(actionKey)
     try {
-      await promoteUserToAdmin(userId)
+      await action()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: profileKeys.pending }),
         queryClient.invalidateQueries({ queryKey: profileKeys.approvedMembers }),
@@ -125,8 +141,10 @@ function SettingsPage() {
       ])
     } catch (error) {
       setAdminError(
-        error instanceof Error ? error.message : 'Failed to promote user.',
+        error instanceof Error ? error.message : failureMessage,
       )
+    } finally {
+      setActiveMemberAction(null)
     }
   }
 
@@ -265,13 +283,36 @@ function SettingsPage() {
             ) : (
               <div className="stack-sm">
                 {pendingProfiles.map((pendingProfile) => (
-                  <UserAdminCard
+                  <MemberDirectoryCard
                     key={pendingProfile.id}
                     profile={pendingProfile}
-                    primaryActionLabel="Approve"
-                    onPrimaryAction={() => void handleApprove(pendingProfile.id)}
-                    secondaryActionLabel="Promote to admin"
-                    onSecondaryAction={() => void handlePromote(pendingProfile.id)}
+                    menuActions={[
+                      {
+                        id: `approve:${pendingProfile.id}`,
+                        label: 'Approve',
+                        loadingLabel: 'Approving...',
+                        onClick: () => void handleApprove(pendingProfile.id),
+                      },
+                      {
+                        id: `promote:${pendingProfile.id}`,
+                        label: 'Promote to Admin',
+                        loadingLabel: 'Promoting...',
+                        onClick: () => void handlePromote(pendingProfile.id),
+                        disabled: pendingProfile.role === 'admin',
+                      },
+                      ...(pendingProfile.id !== user.id
+                        ? [
+                            {
+                              id: `remove:${pendingProfile.id}`,
+                              label: 'Remove from app',
+                              loadingLabel: 'Removing...',
+                              onClick: () => void handleRemoveFromApp(pendingProfile.id),
+                              isDanger: true,
+                            },
+                          ]
+                        : []),
+                    ]}
+                    activeAction={activeMemberAction}
                   />
                 ))}
               </div>
@@ -287,12 +328,34 @@ function SettingsPage() {
             ) : (
               <div className="stack-sm">
                 {approvedMembers.map((approvedProfile) => (
-                  <UserAdminCard
+                  <MemberDirectoryCard
                     key={approvedProfile.id}
                     profile={approvedProfile}
-                    primaryActionLabel="Promote to admin"
-                    onPrimaryAction={() => void handlePromote(approvedProfile.id)}
-                    asMemberDirectoryCard
+                    menuActions={(() => {
+                      const actions: MemberDirectoryMenuAction[] = []
+
+                      if (approvedProfile.role !== 'admin') {
+                        actions.push({
+                          id: `promote:${approvedProfile.id}`,
+                          label: 'Promote to Admin',
+                          loadingLabel: 'Promoting...',
+                          onClick: () => void handlePromote(approvedProfile.id),
+                        })
+                      }
+
+                      if (approvedProfile.id !== user.id) {
+                        actions.push({
+                          id: `remove:${approvedProfile.id}`,
+                          label: 'Remove from app',
+                          loadingLabel: 'Removing...',
+                          onClick: () => void handleRemoveFromApp(approvedProfile.id),
+                          isDanger: true,
+                        })
+                      }
+
+                      return actions
+                    })()}
+                    activeAction={activeMemberAction}
                   />
                 ))}
               </div>
@@ -384,88 +447,6 @@ function ThemePreferenceCard() {
   )
 }
 
-function UserAdminCard({
-  profile,
-  primaryActionLabel,
-  onPrimaryAction,
-  secondaryActionLabel,
-  onSecondaryAction,
-  asMemberDirectoryCard,
-}: {
-  profile: Profile
-  primaryActionLabel: string
-  onPrimaryAction: () => void
-  secondaryActionLabel?: string
-  onSecondaryAction?: () => void
-  asMemberDirectoryCard?: boolean
-}) {
-  if (asMemberDirectoryCard) {
-    return (
-      <article className="member-directory-card admin-member-directory-card">
-        <div className="stack-xs">
-          <strong className="info-value">
-            {profile.full_name || 'Unnamed user'}
-          </strong>
-          <span className="field-label">{profile.email}</span>
-        </div>
-        <div className="member-directory-meta">
-          <span className="event-badge event-badge-strong">
-            {profile.blood_group || 'Blood group not set'}
-          </span>
-          <span className="field-label">
-            {profile.role === 'admin' ? 'App Admin' : 'Member'}
-          </span>
-          <details className="admin-member-menu">
-            <summary
-              className="admin-member-menu-trigger"
-              aria-label={`Actions for ${profile.full_name || profile.email}`}
-            >
-              ⋮
-            </summary>
-            <div className="admin-member-menu-panel">
-              <button
-                type="button"
-                className="secondary-button admin-member-menu-button"
-                onClick={onPrimaryAction}
-              >
-                {primaryActionLabel}
-              </button>
-            </div>
-          </details>
-        </div>
-      </article>
-    )
-  }
-
-  return (
-    <article className="admin-user-card">
-      <div className="stack-xs">
-        <strong className="info-value">
-          {profile.full_name || 'Unnamed user'}
-        </strong>
-        <span className="field-label">{profile.email}</span>
-        <span className="field-label">
-          Blood group: {profile.blood_group ?? 'Not set'}
-        </span>
-      </div>
-      <div className="actions-row">
-        <button type="button" className="primary-button" onClick={onPrimaryAction}>
-          {primaryActionLabel}
-        </button>
-        {secondaryActionLabel && onSecondaryAction ? (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onSecondaryAction}
-          >
-            {secondaryActionLabel}
-          </button>
-        ) : null}
-      </div>
-    </article>
-  )
-}
-
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="info-card">
@@ -474,8 +455,6 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-
-type Profile = Database['public']['Tables']['profiles']['Row']
 
 const BLOOD_GROUPS = [
   'A+',
