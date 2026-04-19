@@ -981,8 +981,10 @@ textarea:focus-visible {
 .admin-member-menu-panel {
   position: absolute;
   right: 0;
-  top: 100%;
-  margin-top: 0.35rem;
+  top: auto;
+  bottom: 100%;
+  margin-bottom: 0.35rem;
+  margin-top: 0;
   width: max-content;
   z-index: 3;
   background: var(--surface);
@@ -992,20 +994,65 @@ textarea:focus-visible {
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
   min-width: 11rem;
   display: none;
+  gap: 0.35rem;
+  align-items: start;
+  justify-items: stretch;
+  padding-inline: 0.35rem;
+  padding-block: 0.3rem;
 }
 
 .admin-member-menu-panel .admin-member-menu-button {
-  min-height: 2.35rem;
-  padding-inline: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  min-height: 2.2rem;
+  border-radius: 0.65rem;
+  padding: 0.48rem 0.72rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
   text-align: left;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  color: var(--sea-ink);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .admin-member-menu[open] .admin-member-menu-panel {
-  display: block;
+  display: grid;
+}
+
+.admin-member-menu-panel .admin-member-menu-button:hover,
+.admin-member-menu-panel .admin-member-menu-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(127, 217, 255, 0.32);
+  background: var(--surface-hover);
+}
+
+.admin-member-menu-button.danger-button {
+  color: #ffd3d9;
+  border-color: rgba(255, 140, 168, 0.35);
+  background: rgba(255, 122, 153, 0.07);
+}
+
+.admin-member-menu-button.danger-button:hover,
+.admin-member-menu-button.danger-button:focus-visible {
+  border-color: rgba(255, 122, 153, 0.56);
+  background: rgba(255, 122, 153, 0.14);
+}
+
+.admin-member-menu-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .meta-row,

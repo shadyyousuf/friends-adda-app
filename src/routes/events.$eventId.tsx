@@ -877,15 +877,8 @@ function EventDetailPage() {
                       role: subscriber.profiles.role,
                       blood_group: subscriber.profiles.blood_group,
                     }}
-                    highlight={
-                      subscriber.event_role === 'captain' ||
-                      subscriber.event_role === 'co-captain'
-                    }
-                    detailLines={[
-                      subscriber.profiles.email,
-                      `Blood group: ${subscriber.profiles.blood_group || 'Not set'}`,
-                      ...(isCurrentUser ? ['You'] : []),
-                    ]}
+                    roleLabel={formatEventRole(subscriber.event_role)}
+                    detailLines={[]}
                     menuActions={menuActions}
                     activeAction={activeAction}
                   />
