@@ -1,5 +1,5 @@
 import { MemberAvatar } from './events/EventTypeHelpers'
-import { type ReactNode } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 type ProfileLike = {
   id: string
@@ -49,6 +49,69 @@ export function MemberDirectoryCard({
 }: MemberDirectoryCardProps) {
   const appRoleLabel = roleLabel?.trim() ?? (profile.role === 'admin' ? 'App Admin' : 'Member')
   const canShowMenu = menuActions.length > 0
+  const menuRef = useRef<HTMLDetailsElement>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menuRef.current || menuRef.current.contains(event.target as Node)) {
+        return
+      }
+
+      setIsMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+    }
+  }, [isMenuOpen])
+
+  const closeMenu = () => {
+    setIsMenuOpen(false)
+  }
+
+  const toggleMenu = (event: MouseEvent<HTMLSummaryElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsMenuOpen((previouslyOpen) => !previouslyOpen)
+  }
+
+  const handlePrimaryAction = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (!primaryAction) {
+      return
+    }
+
+    if (
+      primaryAction.disabled ||
+      (activeAction !== null && activeAction === primaryAction.id)
+    ) {
+      return
+    }
+
+    closeMenu()
+    primaryAction.onClick()
+  }
+
+  const handleMenuAction = (
+    event: MouseEvent<HTMLButtonElement>,
+    action: MemberDirectoryMenuAction,
+  ) => {
+    event.stopPropagation()
+
+    if (action.disabled || (activeAction !== null && activeAction === action.id)) {
+      return
+    }
+
+    closeMenu()
+    action.onClick()
+  }
 
   return (
     <article className="member-directory-card">
@@ -74,10 +137,15 @@ export function MemberDirectoryCard({
       <div className="member-directory-meta">
         {sideContent ? <div className="member-directory-side-content">{sideContent}</div> : null}
         {canShowMenu || primaryAction ? (
-          <details className="admin-member-menu">
+          <details
+            ref={menuRef}
+            className="admin-member-menu"
+            open={isMenuOpen}
+          >
             <summary
               className="admin-member-menu-trigger"
               aria-label={`Actions for ${profile.full_name || profile.email}`}
+              onClick={toggleMenu}
             >
               ⋮
             </summary>
@@ -86,7 +154,7 @@ export function MemberDirectoryCard({
                 <button
                   type="button"
                   className="secondary-button admin-member-menu-button"
-                  onClick={primaryAction.onClick}
+                  onClick={handlePrimaryAction}
                   disabled={
                     primaryAction.disabled ||
                     (activeAction !== null && activeAction === primaryAction.id)
@@ -104,7 +172,7 @@ export function MemberDirectoryCard({
                   className={`secondary-button admin-member-menu-button${
                     action.isDanger ? ' danger-button' : ''
                   }`}
-                  onClick={action.onClick}
+                  onClick={(event) => handleMenuAction(event, action)}
                   disabled={
                     action.disabled || (activeAction !== null && activeAction === action.id)
                   }
