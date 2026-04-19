@@ -1603,6 +1603,12 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.fund-status-member-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .fund-status-member-name {
   display: block;
   min-width: 0;

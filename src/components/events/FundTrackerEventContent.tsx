@@ -16,7 +16,7 @@ import {
   periodKey,
   type FundPeriod,
 } from '../../utils/fund-tracker'
-import { formatMoney } from './EventTypeHelpers'
+import { formatMoney, MemberAvatar } from './EventTypeHelpers'
 import type { EventDetailData } from '../../utils/events'
 
 type FundTrackerEventContentProps = {
@@ -182,33 +182,39 @@ export function FundTrackerEventContent({
             {fundStatusItems.map((item) => (
               <article key={item.member.user_id} className="fund-status-card">
                 <div className="fund-status-main">
-                  <div className="stack-xs fund-status-member">
-                    <strong className="info-value fund-status-member-name">
-                      {getMemberName(item.member)}
-                    </strong>
-                    {item.status === 'paid' ? (
-                      <div className="payment-state payment-state-paid">
-                        <CheckCircle2 size={16} color="#22c55e" />
-                        <span className="fund-status-paid-amount">
-                          {formatAmount(Number(item.payment?.amount ?? 0))}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="payment-state payment-state-pending">
-                        <Clock3 size={16} />
-                        <span>Pending</span>
-                        {item.payment?.amount != null || monthlyDefaultAmount != null ? (
-                          <>
-                            <CircleDollarSign size={14} />
-                            <span>
-                              {formatAmount(
-                                Number(item.payment?.amount ?? monthlyDefaultAmount ?? 0),
-                              )}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    )}
+                  <div className="fund-status-member-row">
+                    <MemberAvatar
+                      member={item.member}
+                      avatarText={item.member.profiles.blood_group?.trim() || null}
+                    />
+                    <div className="stack-xs fund-status-member">
+                      <strong className="info-value fund-status-member-name">
+                        {getMemberName(item.member)}
+                      </strong>
+                      {item.status === 'paid' ? (
+                        <div className="payment-state payment-state-paid">
+                          <CheckCircle2 size={16} color="#22c55e" />
+                          <span className="fund-status-paid-amount">
+                            {formatAmount(Number(item.payment?.amount ?? 0))}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="payment-state payment-state-pending">
+                          <Clock3 size={16} />
+                          <span>Pending</span>
+                          {item.payment?.amount != null || monthlyDefaultAmount != null ? (
+                            <>
+                              <CircleDollarSign size={14} />
+                              <span>
+                                {formatAmount(
+                                  Number(item.payment?.amount ?? monthlyDefaultAmount ?? 0),
+                                )}
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="fund-status-aside">
