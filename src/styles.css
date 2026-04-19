@@ -1685,6 +1685,42 @@ textarea:focus-visible {
 }
 
 @media (max-width: 420px) {
+  :root {
+    --mobile-frame-inline-space: 0.78rem;
+    --mobile-frame-bottom-space: 6.4rem;
+  }
+
+  .topbar {
+    padding: 0.9rem 0.8rem 0.95rem;
+  }
+
+  .panel,
+  .hero-panel {
+    padding: 0.95rem;
+  }
+
+  .panel-title,
+  .hero-title,
+  .section-title {
+    font-size: clamp(1rem, 6vw, 1.2rem);
+  }
+
+  .nav-link {
+    padding: 0.34rem 0.58rem;
+  }
+
+  .actions-row {
+    gap: 0.6rem;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .danger-button,
+  .fund-status-action {
+    padding-inline: 0.95rem;
+    min-height: 2.65rem;
+  }
+
   .member-card,
   .member-directory-card,
   .fund-status-card,
@@ -1711,6 +1747,29 @@ textarea:focus-visible {
 
   .history-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-content {
+    padding: 0.85rem 0.75rem;
+  }
+
+  .member-row {
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .bottom-nav {
+    width: calc(100% - 0.5rem);
+    padding: 0.3rem;
+    gap: 0.3rem;
+  }
+
+  .bottom-nav-link,
+  .bottom-nav-create-link {
+    width: 3rem;
+    height: 3rem;
   }
 }
 
