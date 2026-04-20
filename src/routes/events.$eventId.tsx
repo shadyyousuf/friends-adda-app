@@ -197,7 +197,7 @@ function getMonthlyDefaultAmount(event: EventDetailData['event']): number | null
 function EventDetailPage() {
   const { eventId } = Route.useParams()
   const navigate = Route.useNavigate()
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
   const queryClient = useQueryClient()
   const { setEventTitle } = useEventPageTitle()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -234,10 +234,11 @@ function EventDetailPage() {
   } | null>(null)
   const [randomPickerWinnerAmount, setRandomPickerWinnerAmount] = useState('')
   const touchStartXRef = useRef<number | null>(null)
+  const userId = user?.id ?? ''
 
   const detailQuery = useQuery({
     ...eventDetailQueryOptions(eventId),
-    enabled: Boolean(user && profile?.is_approved),
+    enabled: authStatus === 'signed-in' && Boolean(user && profile?.is_approved),
   })
   const approvedProfilesQuery = useQuery({
     ...approvedProfilesQueryOptions(),
@@ -729,7 +730,7 @@ function EventDetailPage() {
       setSelectedMemberIds([])
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: eventKeys.detail(eventId) }),
-        queryClient.invalidateQueries({ queryKey: eventKeys.dashboard }),
+        queryClient.invalidateQueries({ queryKey: eventKeys.dashboard(userId) }),
       ])
     })
   }
@@ -752,7 +753,7 @@ function EventDetailPage() {
       setIsDeleteConfirmOpen(false)
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: eventKeys.dashboard,
+          queryKey: eventKeys.dashboard(userId),
         }),
         queryClient.invalidateQueries({
           queryKey: eventKeys.detail(eventId),
@@ -826,11 +827,14 @@ function EventDetailPage() {
     }
   }
 
-  if (isLoading) {
+  if (
+    authStatus === 'initializing' ||
+    (authStatus === 'signed-in' && isProfileLoading && !profile)
+  ) {
     return <AnimatedContentLoader isVisible mode="panel" />
   }
 
-  if (!user) {
+  if (authStatus === 'signed-out' || !user) {
     return (
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>

@@ -1,23 +1,28 @@
-import type { User } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
+import type { AuthChangeEvent, User } from '@supabase/supabase-js'
 import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { supabase, type Database } from '../utils/supabase'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
+type AuthStatus = 'initializing' | 'signed-out' | 'signed-in'
 
 type AuthContextValue = {
   user: User | null
   profile: Profile | null
-  isLoading: boolean
+  authStatus: AuthStatus
+  isProfileLoading: boolean
   refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const AUTH_DEPENDENT_QUERY_ROOTS = new Set(['events', 'profiles'])
 
 async function fetchProfile(userId: string) {
   const { data, error } = await supabase
@@ -34,79 +39,242 @@ async function fetchProfile(userId: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('initializing')
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
+  const isMountedRef = useRef(true)
+  const currentUserIdRef = useRef<string | null>(null)
+  const profileRequestIdRef = useRef(0)
+  const profileRef = useRef<Profile | null>(null)
 
-  async function hydrateAuthState(nextUser: User | null) {
-    setUser(nextUser)
+  function setProfileState(nextProfile: Profile | null) {
+    profileRef.current = nextProfile
+    setProfile(nextProfile)
+  }
 
-    if (!nextUser) {
-      setProfile(null)
-      setIsLoading(false)
-      return
+  function clearAuthDependentQueries() {
+    queryClient.removeQueries({
+      predicate: (query) =>
+        AUTH_DEPENDENT_QUERY_ROOTS.has(String(query.queryKey[0] ?? '')),
+    })
+  }
+
+  function applySignedOutState() {
+    currentUserIdRef.current = null
+    profileRequestIdRef.current += 1
+    setUser(null)
+    setProfileState(null)
+    setAuthStatus('signed-out')
+    setIsProfileLoading(false)
+  }
+
+  async function loadProfile(
+    userId: string,
+    {
+      markLoading,
+      preserveExistingProfile,
+    }: {
+      markLoading: boolean
+      preserveExistingProfile?: boolean
+    },
+  ) {
+    const requestId = ++profileRequestIdRef.current
+    currentUserIdRef.current = userId
+
+    if (markLoading) {
+      setIsProfileLoading(true)
     }
 
     try {
-      const nextProfile = await fetchProfile(nextUser.id)
-      setProfile(nextProfile)
+      const nextProfile = await fetchProfile(userId)
+
+      if (
+        !isMountedRef.current ||
+        profileRequestIdRef.current !== requestId ||
+        currentUserIdRef.current !== userId
+      ) {
+        return
+      }
+
+      setProfileState(nextProfile)
     } catch (error) {
       console.error('Failed to load profile', error)
-      setProfile(null)
+
+      if (
+        !isMountedRef.current ||
+        profileRequestIdRef.current !== requestId ||
+        currentUserIdRef.current !== userId
+      ) {
+        return
+      }
+
+      if (!preserveExistingProfile) {
+        setProfileState(null)
+      }
     } finally {
-      setIsLoading(false)
+      if (
+        !isMountedRef.current ||
+        profileRequestIdRef.current !== requestId ||
+        currentUserIdRef.current !== userId
+      ) {
+        return
+      }
+
+      setIsProfileLoading(false)
+    }
+  }
+
+  function applySignedInState(
+    nextUser: User,
+    {
+      markProfileLoading,
+      preserveExistingProfile,
+    }: {
+      markProfileLoading: boolean
+      preserveExistingProfile?: boolean
+    },
+  ) {
+    currentUserIdRef.current = nextUser.id
+    setUser(nextUser)
+    setAuthStatus('signed-in')
+    void loadProfile(nextUser.id, {
+      markLoading: markProfileLoading,
+      preserveExistingProfile,
+    })
+  }
+
+  async function reconcileVerifiedUser(sessionUser: User) {
+    try {
+      const {
+        data: { user: verifiedUser },
+      } = await supabase.auth.getUser()
+
+      if (!isMountedRef.current || currentUserIdRef.current !== sessionUser.id) {
+        return
+      }
+
+      if (!verifiedUser) {
+        applySignedOutState()
+        clearAuthDependentQueries()
+        return
+      }
+
+      if (verifiedUser.id !== sessionUser.id) {
+        const isSameUser = currentUserIdRef.current === verifiedUser.id
+        applySignedInState(verifiedUser, {
+          markProfileLoading: !isSameUser || !profileRef.current,
+          preserveExistingProfile: isSameUser,
+        })
+        return
+      }
+
+      setUser(verifiedUser)
+    } catch (error) {
+      console.error('Failed to verify cached auth session', error)
+
+      if (!isMountedRef.current || currentUserIdRef.current !== sessionUser.id) {
+        return
+      }
+
+      applySignedOutState()
+      clearAuthDependentQueries()
     }
   }
 
   async function refreshProfile() {
     if (!user) {
-      setProfile(null)
+      setProfileState(null)
+      setIsProfileLoading(false)
       return
     }
 
-    const nextProfile = await fetchProfile(user.id)
-    setProfile(nextProfile)
+    await loadProfile(user.id, {
+      markLoading: false,
+      preserveExistingProfile: true,
+    })
   }
 
   useEffect(() => {
-    let isMounted = true
+    isMountedRef.current = true
+
+    function handleAuthStateChange(event: AuthChangeEvent, nextUser: User | null) {
+      if (event === 'SIGNED_OUT' || !nextUser) {
+        applySignedOutState()
+        clearAuthDependentQueries()
+        return
+      }
+
+      if (
+        event === 'SIGNED_IN' ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'USER_UPDATED'
+      ) {
+        const isSameUser = currentUserIdRef.current === nextUser.id
+        applySignedInState(nextUser, {
+          markProfileLoading: !isSameUser || !profileRef.current,
+          preserveExistingProfile: isSameUser,
+        })
+      }
+    }
 
     async function initialize() {
       try {
         const {
-          data: { user: initialUser },
-        } = await supabase.auth.getUser()
+          data: { session },
+        } = await supabase.auth.getSession()
 
-        if (isMounted) {
-          await hydrateAuthState(initialUser)
+        if (!isMountedRef.current) {
+          return
         }
+
+        const initialUser = session?.user ?? null
+
+        if (!initialUser) {
+          applySignedOutState()
+          return
+        }
+
+        applySignedInState(initialUser, {
+          markProfileLoading: true,
+        })
+        void reconcileVerifiedUser(initialUser)
       } catch (error) {
         console.error('Failed to initialize auth', error)
-        if (isMounted) {
-          setUser(null)
-          setProfile(null)
-          setIsLoading(false)
+
+        if (!isMountedRef.current) {
+          return
         }
+
+        applySignedOutState()
       }
     }
 
-    void initialize()
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoading(true)
-      void hydrateAuthState(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      handleAuthStateChange(event, session?.user ?? null)
     })
 
+    void initialize()
+
     return () => {
-      isMounted = false
+      isMountedRef.current = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [queryClient])
 
   return (
-    <AuthContext.Provider value={{ user, profile, isLoading, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        authStatus,
+        isProfileLoading,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

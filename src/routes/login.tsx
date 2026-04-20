@@ -1,5 +1,6 @@
 import { Link, Navigate, createFileRoute } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import { signIn } from '../utils/auth'
 
@@ -8,13 +9,20 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!isLoading && user) {
+  if (
+    authStatus === 'initializing' ||
+    (authStatus === 'signed-in' && isProfileLoading)
+  ) {
+    return <AnimatedContentLoader isVisible mode="panel" />
+  }
+
+  if (authStatus === 'signed-in' && user) {
     return <Navigate to={profile?.is_approved === false ? '/settings' : '/'} />
   }
 

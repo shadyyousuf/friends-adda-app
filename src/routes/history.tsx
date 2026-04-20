@@ -12,10 +12,11 @@ export const Route = createFileRoute('/history')({
 })
 
 function HistoryPage() {
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
+  const userId = user?.id ?? ''
   const historyQuery = useQuery({
-    ...completedEventsQueryOptions(),
-    enabled: Boolean(user && profile?.is_approved),
+    ...completedEventsQueryOptions(userId),
+    enabled: authStatus === 'signed-in' && Boolean(user && profile?.is_approved),
   })
   const events: EventWithRole[] = historyQuery.data ?? []
   const errorMessage =
@@ -25,11 +26,14 @@ function HistoryPage() {
         ? 'Failed to load history.'
         : null
 
-  if (isLoading) {
+  if (
+    authStatus === 'initializing' ||
+    (authStatus === 'signed-in' && isProfileLoading && !profile)
+  ) {
     return <AnimatedContentLoader isVisible mode="panel" />
   }
 
-  if (!user) {
+  if (authStatus === 'signed-out' || !user) {
     return (
       <section className="glass-card panel stack-md">
         <p className="eyebrow">History</p>

@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
 import {
   MemberDirectoryCard,
@@ -27,7 +28,7 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, authStatus, isProfileLoading, refreshProfile } = useAuth()
   const queryClient = useQueryClient()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [bloodGroup, setBloodGroup] = useState(profile?.blood_group ?? '')
@@ -148,7 +149,25 @@ function SettingsPage() {
 
   const themePreferenceCard = <ThemePreferenceCard />
 
-  if (!user) {
+  if (authStatus === 'initializing') {
+    return (
+      <div className="stack-lg">
+        {themePreferenceCard}
+        <AnimatedContentLoader isVisible mode="panel" />
+      </div>
+    )
+  }
+
+  if (authStatus === 'signed-in' && isProfileLoading) {
+    return (
+      <div className="stack-lg">
+        {themePreferenceCard}
+        <AnimatedContentLoader isVisible mode="panel" />
+      </div>
+    )
+  }
+
+  if (authStatus === 'signed-out' || !user) {
     return (
       <div className="stack-lg">
         {themePreferenceCard}

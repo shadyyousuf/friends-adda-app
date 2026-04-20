@@ -74,7 +74,7 @@ const GUEST_JOURNEY = [
 
 function HomePage() {
   const navigate = Route.useNavigate()
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
   const queryClient = useQueryClient()
   const locationSearch = useRouterState({ select: (state) => state.location.search })
   const locationPathname = useRouterState({ select: (state) => state.location.pathname })
@@ -91,10 +91,12 @@ function HomePage() {
   const [joinError, setJoinError] = useState<string | null>(null)
   const [activeJoinEventId, setActiveJoinEventId] = useState<string | null>(null)
   const isFundTracker = eventType === 'fund_tracker'
+  const userId = user?.id ?? ''
 
-  const canLoadDashboard = Boolean(user && profile?.is_approved)
+  const canLoadDashboard =
+    authStatus === 'signed-in' && Boolean(user && profile?.is_approved)
   const dashboardQuery = useQuery({
-    ...dashboardQueryOptions(),
+    ...dashboardQueryOptions(userId),
     enabled: canLoadDashboard,
   })
   const dashboardData: DashboardData = dashboardQuery.data ?? {
@@ -202,7 +204,9 @@ function HomePage() {
         throw new Error('Failed to create event.')
       }
 
-      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.dashboard(userId),
+      })
 
       void navigate({ to: '/events/$eventId', params: { eventId: createdEvent.id } })
       setTitle('')
@@ -228,7 +232,9 @@ function HomePage() {
 
     try {
       await joinPublicEvent(eventId)
-      await queryClient.invalidateQueries({ queryKey: eventKeys.dashboard })
+      await queryClient.invalidateQueries({
+        queryKey: eventKeys.dashboard(userId),
+      })
     } catch (error) {
       setJoinError(error instanceof Error ? error.message : 'Failed to join event.')
     } finally {
@@ -236,11 +242,14 @@ function HomePage() {
     }
   }
 
-  if (isLoading) {
+  if (
+    authStatus === 'initializing' ||
+    (authStatus === 'signed-in' && isProfileLoading && !profile)
+  ) {
     return <AnimatedContentLoader isVisible mode="panel" />
   }
 
-  if (!user) {
+  if (authStatus === 'signed-out' || !user) {
     return <GuestLanding />
   }
 

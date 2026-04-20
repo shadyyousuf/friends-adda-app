@@ -29,9 +29,14 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
   const pageMeta = getPageMeta(pathname, Boolean(user), profile?.full_name ?? null)
-  const status = getStatusCopy({ user: Boolean(user), isLoading, profile })
+  const status = getStatusCopy({
+    user: Boolean(user),
+    authStatus,
+    isProfileLoading,
+    profile,
+  })
   const [eventTitle, setEventTitle] = useState<string | null>(null)
 
   const isDashboardRoute = pathname === '/'
@@ -39,10 +44,17 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const isSettingsRoute = pathname === '/settings'
   const isEventRoute = pathname.startsWith('/events/')
   const showPendingScreen =
-    user && profile && !profile.is_approved && !isSettingsRoute
-  const showProfileSetupScreen = user && !profile && !isLoading && !isSettingsRoute
-  const showBottomNav = Boolean(user && profile?.is_approved) && !isAuthScreen
-  const showInstallButtonInTopbar = !(pathname === '/' && !user)
+    authStatus === 'signed-in' &&
+    !isProfileLoading &&
+    Boolean(user && profile && !profile.is_approved && !isSettingsRoute)
+  const showProfileSetupScreen =
+    authStatus === 'signed-in' &&
+    !isProfileLoading &&
+    Boolean(user && !profile && !isSettingsRoute)
+  const showBottomNav =
+    authStatus === 'signed-in' && Boolean(user && profile?.is_approved) && !isAuthScreen
+  const showInstallButtonInTopbar =
+    !(pathname === '/' && authStatus !== 'signed-in')
 
   const topbarTitle = isEventRoute
     ? eventTitle ?? pageMeta.title
@@ -193,14 +205,20 @@ function getPageMeta(
 
 function getStatusCopy({
   user,
-  isLoading,
+  authStatus,
+  isProfileLoading,
   profile,
 }: {
   user: boolean
-  isLoading: boolean
+  authStatus: 'initializing' | 'signed-out' | 'signed-in'
+  isProfileLoading: boolean
   profile: { role?: string | null; is_approved?: boolean | null } | null
 }) {
-  if (isLoading) {
+  if (authStatus === 'initializing') {
+    return { label: 'Loading', className: '' }
+  }
+
+  if (authStatus === 'signed-in' && isProfileLoading && !profile) {
     return { label: 'Loading', className: '' }
   }
 

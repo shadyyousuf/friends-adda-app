@@ -50,15 +50,15 @@ export type EventDetailData = {
 }
 
 export const eventKeys = {
-  dashboard: ['events', 'dashboard'] as const,
-  history: ['events', 'history'] as const,
+  dashboard: (userId: string) => ['events', 'dashboard', userId] as const,
+  history: (userId: string) => ['events', 'history', userId] as const,
   detail: (eventId: string) => ['events', 'detail', eventId] as const,
 }
 
-export function dashboardQueryOptions() {
+export function dashboardQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: eventKeys.dashboard,
-    queryFn: loadDashboardData,
+    queryKey: eventKeys.dashboard(userId),
+    queryFn: () => loadDashboardData(userId),
   })
 }
 
@@ -69,25 +69,14 @@ export function eventDetailQueryOptions(eventId: string) {
   })
 }
 
-export function completedEventsQueryOptions() {
+export function completedEventsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: eventKeys.history,
-    queryFn: loadCompletedEventsForCurrentUser,
+    queryKey: eventKeys.history(userId),
+    queryFn: () => loadCompletedEventsForUser(userId),
   })
 }
 
-export async function loadDashboardData(): Promise<DashboardData> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return {
-      myEvents: [],
-      discoverEvents: [],
-    }
-  }
-
+async function loadDashboardData(userId: string): Promise<DashboardData> {
   const { data: subscriptions, error: subscriptionsError } = await supabase
     .from('event_subscribers')
     .select(
@@ -106,7 +95,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
         )
       `,
     )
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('joined_at', { ascending: false })
 
   if (subscriptionsError) {
@@ -500,15 +489,7 @@ export function extractRandomPickerWinnerId(activity: ActivityRow): string | nul
   return winner
 }
 
-export async function loadCompletedEventsForCurrentUser() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return []
-  }
-
+async function loadCompletedEventsForUser(userId: string) {
   const { data, error } = await supabase
     .from('event_subscribers')
     .select(
@@ -527,7 +508,7 @@ export async function loadCompletedEventsForCurrentUser() {
         )
       `,
     )
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('events.status', 'completed')
     .order('joined_at', { ascending: false })
 

@@ -18,7 +18,7 @@ export const Route = createFileRoute('/members')({
 })
 
 function MembersPage() {
-  const { user, profile, isLoading } = useAuth()
+  const { user, profile, authStatus, isProfileLoading } = useAuth()
   const [query, setQuery] = useState('')
   const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
   const [memberActionError, setMemberActionError] = useState<string | null>(null)
@@ -90,11 +90,14 @@ function MembersPage() {
     )
   }
 
-  if (isLoading) {
+  if (
+    authStatus === 'initializing' ||
+    (authStatus === 'signed-in' && isProfileLoading && !profile)
+  ) {
     return <AnimatedContentLoader isVisible mode="panel" />
   }
 
-  if (!user) {
+  if (authStatus === 'signed-out' || !user) {
     return (
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Members</p>
