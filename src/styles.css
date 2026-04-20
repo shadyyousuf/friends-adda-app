@@ -351,99 +351,84 @@ textarea {
   box-shadow: 0 10px 24px rgba(10, 24, 39, 0.24);
 }
 
-.install-app {
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
+.install-prompt-shell {
+  position: fixed;
+  left: 50%;
+  z-index: 35;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 2rem), 28rem);
+  padding: 1rem;
+  border-radius: 1.45rem;
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.install-app-hero {
-  flex: 1 1 11rem;
-  align-items: stretch;
+.mobile-frame-no-nav .install-prompt-shell {
+  bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }
 
-.install-app-button {
-  display: inline-flex;
+.mobile-frame-with-nav .install-prompt-shell {
+  bottom: calc(env(safe-area-inset-bottom) + 5.9rem);
+}
+
+.install-prompt-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
   align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  cursor: pointer;
-  font-weight: 800;
-  transition:
-    transform 180ms ease,
-    background 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
 }
 
-.install-app-button-compact {
-  min-height: 2.65rem;
-  padding: 0.7rem 0.95rem;
-  border-radius: 999px;
-  border: 1px solid rgba(127, 217, 255, 0.2);
-  background: rgba(127, 217, 255, 0.1);
-  color: var(--sea-ink);
+.install-prompt-logo {
+  display: block;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(127, 217, 255, 0.14);
+  box-shadow: 0 12px 28px rgba(9, 23, 39, 0.18);
 }
 
-.install-app-button-compact:hover,
-.install-app-button-compact:focus-visible {
-  transform: translateY(-1px);
-  background: rgba(127, 217, 255, 0.16);
-  border-color: rgba(127, 217, 255, 0.26);
-  box-shadow: 0 12px 28px rgba(9, 23, 39, 0.22);
+.install-prompt-copy {
+  min-width: 0;
 }
 
-.install-app-button-hero {
-  width: 100%;
-}
-
-.install-app-popover {
-  position: absolute;
-  top: calc(100% + 0.7rem);
-  right: 0;
-  z-index: 30;
-  width: min(19rem, calc(100vw - 2rem));
-  padding: 0.95rem;
-  border-radius: 1.15rem;
-}
-
-.install-app-hero .install-app-popover {
-  right: auto;
-  left: 0;
-  width: min(21rem, calc(100vw - 2rem));
-}
-
-.install-app-popover-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.install-app-popover-title {
+.install-prompt-title {
   margin: 0;
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: 1rem;
-  line-height: 1.1;
+  font-size: 1.15rem;
+  line-height: 1.05;
 }
 
-.install-app-close {
+.install-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.95rem;
+}
+
+.install-prompt-button {
+  flex: 1 1 auto;
+}
+
+.install-prompt-dismiss {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.85rem;
+  height: 2.85rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface-soft);
+  color: var(--text-primary);
 }
 
-.install-app-popover-copy {
-  margin-top: 0.8rem;
-  max-width: 28ch;
-  font-size: 0.9rem;
+.install-prompt-instructions {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.95rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--line);
 }
 
 .animated-loader-overlay {
@@ -1064,6 +1049,10 @@ textarea {
   gap: 0.75rem;
 }
 
+.session-actions {
+  justify-content: center;
+}
+
 .split-header {
   display: flex;
   align-items: start;
@@ -1119,6 +1108,12 @@ textarea {
   background: rgba(240, 160, 170, 0.12);
   border-color: rgba(240, 160, 170, 0.22);
   color: #ffe2e5;
+}
+
+.session-signout-button {
+  width: min(100%, 16rem);
+  min-height: 3.35rem;
+  font-size: 1rem;
 }
 
 .primary-button:disabled,
@@ -1260,6 +1255,8 @@ textarea:focus-visible {
 
 .info-value {
   font-size: 0.96rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .admin-user-card {

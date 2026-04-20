@@ -1,14 +1,10 @@
-import { Download, Share2, X } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { Download, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
   getManualInstallMode,
   isStandaloneDisplay,
   type ManualInstallMode,
 } from '../utils/pwa'
-
-type InstallAppButtonProps = {
-  variant?: 'compact' | 'hero'
-}
 
 type InstallPromptOutcome = 'accepted' | 'dismissed'
 
@@ -21,18 +17,16 @@ type NavigatorWithStandalone = Navigator & {
   standalone?: boolean
 }
 
-export default function InstallAppButton({
-  variant = 'compact',
-}: InstallAppButtonProps) {
+export default function InstallAppPrompt() {
   const [manualInstallMode, setManualInstallMode] =
     useState<ManualInstallMode>('none')
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null)
   const [isPrompting, setIsPrompting] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
-  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false)
+  const [isDismissed, setIsDismissed] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
-  const helpId = useId()
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -61,7 +55,8 @@ export default function InstallAppButton({
 
       if (standalone) {
         setDeferredPrompt(null)
-        setIsHelpOpen(false)
+        setIsInstructionsOpen(false)
+        setIsPrompting(false)
       }
     }
 
@@ -73,7 +68,9 @@ export default function InstallAppButton({
 
     const handleInstalled = () => {
       setDeferredPrompt(null)
-      setIsHelpOpen(false)
+      setIsInstructionsOpen(false)
+      setIsDismissed(true)
+      setIsPrompting(false)
       updateInstallState()
     }
 
@@ -125,92 +122,97 @@ export default function InstallAppButton({
     }
   }, [])
 
-  if (
-    !hasMounted ||
-    isStandalone ||
-    (!deferredPrompt && manualInstallMode === 'none')
-  ) {
+  const isManualInstall = !deferredPrompt
+  const isAvailable =
+    !isStandalone && (manualInstallMode !== 'none' || Boolean(deferredPrompt))
+
+  if (!hasMounted || !isAvailable || isDismissed) {
     return null
   }
 
-  const isManualInstall = !deferredPrompt
-  const label = deferredPrompt
-    ? 'Install app'
-    : manualInstallMode === 'safari-desktop'
-      ? 'Add to Dock'
-      : 'Add to Home Screen'
-  const Icon = deferredPrompt ? Download : Share2
-  const wrapperClassName =
-    variant === 'hero' ? 'install-app install-app-hero' : 'install-app'
-  const buttonClassName =
-    variant === 'hero'
-      ? 'secondary-button guest-hero-button install-app-button install-app-button-hero'
-      : 'install-app-button install-app-button-compact'
-
-  async function handleButtonClick() {
+  async function handleInstallClick() {
     if (!deferredPrompt) {
-      setIsHelpOpen((currentValue) => !currentValue)
+      setIsInstructionsOpen((currentValue) => !currentValue)
       return
     }
 
-    const activePrompt = deferredPrompt
-    setDeferredPrompt(null)
-    setIsHelpOpen(false)
     setIsPrompting(true)
 
     try {
-      const promptResult = await activePrompt.prompt()
+      const promptResult = await deferredPrompt.prompt()
       const outcome =
-        promptResult?.outcome ?? (await activePrompt.userChoice)?.outcome
+        promptResult?.outcome ?? (await deferredPrompt.userChoice)?.outcome
 
       if (outcome === 'dismissed') {
-        setIsPrompting(false)
+        setIsDismissed(true)
       }
     } catch {
+      setIsDismissed(true)
+    } finally {
+      setDeferredPrompt(null)
+      setIsInstructionsOpen(false)
       setIsPrompting(false)
     }
   }
 
   return (
-    <div className={wrapperClassName}>
-      <button
-        type="button"
-        className={buttonClassName}
-        aria-controls={isManualInstall ? helpId : undefined}
-        aria-expanded={isManualInstall ? isHelpOpen : undefined}
-        aria-haspopup={isManualInstall ? 'dialog' : undefined}
-        onClick={() => void handleButtonClick()}
-        disabled={isPrompting}
-      >
-        <Icon size={variant === 'hero' ? 18 : 16} aria-hidden="true" />
-        <span>{isPrompting ? 'Opening...' : label}</span>
-      </button>
+    <section
+      className="glass-card install-prompt-shell"
+      aria-label="Install app prompt"
+    >
+      <div className="install-prompt-content">
+        <img
+          src="/logo.png"
+          alt=""
+          className="install-prompt-logo"
+          width={56}
+          height={56}
+        />
 
-      {isManualInstall && isHelpOpen ? (
-        <div id={helpId} role="dialog" className="glass-card install-app-popover">
-          <div className="install-app-popover-header">
-            <div className="stack-xs">
-              <p className="eyebrow">Install</p>
-              <h3 className="install-app-popover-title">{label}</h3>
-            </div>
+        <div className="stack-xs install-prompt-copy">
+          <p className="eyebrow">Install</p>
+          <h2 className="install-prompt-title">Install Friends Adda</h2>
+          <p className="muted-copy">
+            Keep Friends Adda on your home screen for faster access and a more
+            app-like experience.
+          </p>
+        </div>
+      </div>
 
-            <button
-              type="button"
-              className="ghost-button install-app-close"
-              aria-label="Close install help"
-              onClick={() => setIsHelpOpen(false)}
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
-          </div>
+      <div className="install-prompt-actions">
+        <button
+          type="button"
+          className="primary-button install-prompt-button"
+          onClick={() => void handleInstallClick()}
+          disabled={isPrompting}
+        >
+          <Download size={18} aria-hidden="true" />
+          <span>{isPrompting ? 'Opening...' : 'Install app'}</span>
+        </button>
 
-          <p className="muted-copy install-app-popover-copy">
+        <button
+          type="button"
+          className="ghost-button install-prompt-dismiss"
+          aria-label="Close install prompt"
+          onClick={() => {
+            setIsDismissed(true)
+            setIsInstructionsOpen(false)
+          }}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {isManualInstall && isInstructionsOpen ? (
+        <div className="install-prompt-instructions">
+          <p className="eyebrow">How to install</p>
+          <p className="muted-copy">
             {manualInstallMode === 'safari-desktop'
-              ? 'In Safari on macOS, open the File menu and choose Add to Dock to install this app.'
-              : 'Open your browser share menu, then choose Add to Home Screen to install this app.'}
+              ? 'In Safari on macOS, open the File menu and choose Add to Dock.'
+              : 'Open your browser share menu, then choose Add to Home Screen.'}
           </p>
         </div>
       ) : null}
-    </div>
+    </section>
   )
 }

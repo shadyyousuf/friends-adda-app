@@ -9,7 +9,9 @@ describe('Root route head metadata', () => {
     expect(head?.links).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ rel: 'manifest', href: '/manifest.json' }),
-        expect.objectContaining({ rel: 'apple-touch-icon', href: '/logo192.png' }),
+        expect.objectContaining({ rel: 'icon', href: '/logo.png' }),
+        expect.objectContaining({ rel: 'icon', href: '/favicon.ico' }),
+        expect.objectContaining({ rel: 'apple-touch-icon', href: '/logo.png' }),
       ]),
     )
     expect(head?.meta).toEqual(

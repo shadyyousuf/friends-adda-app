@@ -187,213 +187,224 @@ function SettingsPage() {
     )
   }
 
-  return (
-    <div className="stack-lg">
-      {themePreferenceCard}
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Settings</p>
-        <h2 className="panel-title">Account status</h2>
-        <div className="info-grid">
-          <InfoItem label="Email" value={user.email ?? 'No email'} />
-          <InfoItem label="Role" value={profile?.role ?? 'member'} />
-          <InfoItem
-            label="Approval"
-            value={profile?.is_approved ? 'Approved' : 'Pending approval'}
-          />
-          <InfoItem
-            label="Blood group"
-            value={profile?.blood_group ?? 'Not set'}
-          />
-        </div>
-      </section>
+  const adminSection = isAdmin ? (
+    <section className="glass-card panel stack-lg">
+      <div className="stack-sm">
+        <p className="eyebrow">Admin</p>
+        <h2 className="panel-title">User approvals and promotion</h2>
+      </div>
 
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Profile</p>
-        <h2 className="panel-title">Update your profile</h2>
-        <form className="stack-md" onSubmit={handleProfileSubmit}>
-          <label className="stack-xs">
-            <span className="field-label">Full name</span>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
-              className="field-input"
-              placeholder="Your full name"
-            />
-          </label>
+      {adminError ? <p className="form-error">{adminError}</p> : null}
+      {queryAdminError ? <p className="form-error">{queryAdminError}</p> : null}
 
-          <label className="stack-xs">
-            <span className="field-label">Blood group</span>
-            <select
-              value={bloodGroup}
-              onChange={(event) => setBloodGroup(event.target.value)}
-              className="field-input"
-            >
-              <option value="">Select blood group</option>
-              {BLOOD_GROUPS.map((group) => (
-                <option key={group} value={group}>
-                  {group}
-                </option>
-              ))}
-            </select>
-          </label>
+      <div className="actions-row">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => void refreshAdminLists()}
+          disabled={
+            pendingProfilesQuery.isPending ||
+            pendingProfilesQuery.isRefetching ||
+            approvedMembersQuery.isPending ||
+            approvedMembersQuery.isRefetching
+          }
+        >
+          {pendingProfilesQuery.isPending ||
+          pendingProfilesQuery.isRefetching ||
+          approvedMembersQuery.isPending ||
+          approvedMembersQuery.isRefetching
+            ? 'Refreshing...'
+            : 'Refresh admin lists'}
+        </button>
+      </div>
 
-          {profileError ? <p className="form-error">{profileError}</p> : null}
-          {profileMessage ? <p className="form-success">{profileMessage}</p> : null}
-
-          <div className="actions-row">
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={isSavingProfile}
-            >
-              {isSavingProfile ? 'Saving...' : 'Save profile'}
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void refreshProfile()}
-            >
-              Refresh profile
-            </button>
+      <div className="stack-md">
+        <h3 className="section-title">Pending approvals</h3>
+        {pendingProfiles.length === 0 ? (
+          <div className="empty-state">
+            <h4 className="empty-state-title">Approval queue is clear</h4>
           </div>
-        </form>
-      </section>
-
-      {isAdmin ? (
-        <section className="glass-card panel stack-lg">
+        ) : (
           <div className="stack-sm">
-            <p className="eyebrow">Admin</p>
-            <h2 className="panel-title">User approvals and promotion</h2>
-          </div>
-
-          {adminError ? <p className="form-error">{adminError}</p> : null}
-          {queryAdminError ? <p className="form-error">{queryAdminError}</p> : null}
-
-          <div className="actions-row">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void refreshAdminLists()}
-              disabled={
-                pendingProfilesQuery.isPending ||
-                pendingProfilesQuery.isRefetching ||
-                approvedMembersQuery.isPending ||
-                approvedMembersQuery.isRefetching
-              }
-            >
-              {pendingProfilesQuery.isPending ||
-              pendingProfilesQuery.isRefetching ||
-              approvedMembersQuery.isPending ||
-              approvedMembersQuery.isRefetching
-                ? 'Refreshing...'
-                : 'Refresh admin lists'}
-            </button>
-          </div>
-
-          <div className="stack-md">
-            <h3 className="section-title">Pending approvals</h3>
-            {pendingProfiles.length === 0 ? (
-              <div className="empty-state">
-                <h4 className="empty-state-title">Approval queue is clear</h4>
-              </div>
-            ) : (
-              <div className="stack-sm">
-                {pendingProfiles.map((pendingProfile) => (
-                  <MemberDirectoryCard
-                    key={pendingProfile.id}
-                    profile={pendingProfile}
-                    menuActions={[
-                      {
-                        id: `approve:${pendingProfile.id}`,
-                        label: 'Approve',
-                        loadingLabel: 'Approving...',
-                        onClick: () => void handleApprove(pendingProfile.id),
-                      },
-                      {
-                        id: `promote:${pendingProfile.id}`,
-                        label: 'Promote to Admin',
-                        loadingLabel: 'Promoting...',
-                        onClick: () => void handlePromote(pendingProfile.id),
-                        disabled: pendingProfile.role === 'admin',
-                      },
-                        ...(pendingProfile.id !== user.id
-                          ? [
-                              {
-                                id: `remove:${pendingProfile.id}`,
-                                label: 'Remove from app',
-                                loadingLabel: 'Removing...',
-                                onClick: () => void handleRemoveFromApp(pendingProfile.id),
-                                isDanger: true as const,
-                              },
-                            ]
-                          : []),
-                      ]}
-                    activeAction={activeMemberAction}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* <div className="stack-md">
-            <h3 className="section-title">Approved members</h3>
-            {approvedMembers.length === 0 ? (
-              <div className="empty-state">
-                <h4 className="empty-state-title">No promotion candidates</h4>
-              </div>
-            ) : (
-              <div className="stack-sm">
-                {approvedMembers.map((approvedProfile) => (
-                  <MemberDirectoryCard
-                    key={approvedProfile.id}
-                    profile={approvedProfile}
-                    menuActions={(() => {
-                      const actions: MemberDirectoryMenuAction[] = []
-
-                      if (approvedProfile.role !== 'admin') {
-                        actions.push({
-                          id: `promote:${approvedProfile.id}`,
-                          label: 'Promote to Admin',
-                          loadingLabel: 'Promoting...',
-                          onClick: () => void handlePromote(approvedProfile.id),
-                        })
-                      }
-
-                      if (approvedProfile.id !== user.id) {
-                        actions.push({
-                          id: `remove:${approvedProfile.id}`,
+            {pendingProfiles.map((pendingProfile) => (
+              <MemberDirectoryCard
+                key={pendingProfile.id}
+                profile={pendingProfile}
+                menuActions={[
+                  {
+                    id: `approve:${pendingProfile.id}`,
+                    label: 'Approve',
+                    loadingLabel: 'Approving...',
+                    onClick: () => void handleApprove(pendingProfile.id),
+                  },
+                  {
+                    id: `promote:${pendingProfile.id}`,
+                    label: 'Promote to Admin',
+                    loadingLabel: 'Promoting...',
+                    onClick: () => void handlePromote(pendingProfile.id),
+                    disabled: pendingProfile.role === 'admin',
+                  },
+                  ...(pendingProfile.id !== user.id
+                    ? [
+                        {
+                          id: `remove:${pendingProfile.id}`,
                           label: 'Remove from app',
                           loadingLabel: 'Removing...',
-                          onClick: () => void handleRemoveFromApp(approvedProfile.id),
-                          isDanger: true,
-                        })
-                      }
+                          onClick: () => void handleRemoveFromApp(pendingProfile.id),
+                          isDanger: true as const,
+                        },
+                      ]
+                    : []),
+                ]}
+                activeAction={activeMemberAction}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-                      return actions
-                    })()}
-                    activeAction={activeMemberAction}
-                  />
-                ))}
-              </div>
-            )}
-          </div> */}
-        </section>
-      ) : null}
+      {/* <div className="stack-md">
+        <h3 className="section-title">Approved members</h3>
+        {approvedMembers.length === 0 ? (
+          <div className="empty-state">
+            <h4 className="empty-state-title">No promotion candidates</h4>
+          </div>
+        ) : (
+          <div className="stack-sm">
+            {approvedMembers.map((approvedProfile) => (
+              <MemberDirectoryCard
+                key={approvedProfile.id}
+                profile={approvedProfile}
+                menuActions={(() => {
+                  const actions: MemberDirectoryMenuAction[] = []
 
-      <section className="glass-card panel stack-md">
-        <p className="eyebrow">Session</p>
+                  if (approvedProfile.role !== 'admin') {
+                    actions.push({
+                      id: `promote:${approvedProfile.id}`,
+                      label: 'Promote to Admin',
+                      loadingLabel: 'Promoting...',
+                      onClick: () => void handlePromote(approvedProfile.id),
+                    })
+                  }
+
+                  if (approvedProfile.id !== user.id) {
+                    actions.push({
+                      id: `remove:${approvedProfile.id}`,
+                      label: 'Remove from app',
+                      loadingLabel: 'Removing...',
+                      onClick: () => void handleRemoveFromApp(approvedProfile.id),
+                      isDanger: true,
+                    })
+                  }
+
+                  return actions
+                })()}
+                activeAction={activeMemberAction}
+              />
+            ))}
+          </div>
+        )}
+      </div> */}
+    </section>
+  ) : null
+
+  const settingsSection = (
+    <section className="glass-card panel stack-md">
+      <p className="eyebrow">Settings</p>
+      <h2 className="panel-title">Account status</h2>
+      <div className="info-grid">
+        <InfoItem label="Email" value={user.email ?? 'No email'} />
+        <InfoItem label="Role" value={profile?.role ?? 'member'} />
+        <InfoItem
+          label="Approval"
+          value={profile?.is_approved ? 'Approved' : 'Pending approval'}
+        />
+        <InfoItem
+          label="Blood group"
+          value={profile?.blood_group ?? 'Not set'}
+        />
+      </div>
+    </section>
+  )
+
+  const profileSection = (
+    <section className="glass-card panel stack-md">
+      <p className="eyebrow">Profile</p>
+      <h2 className="panel-title">Update your profile</h2>
+      <form className="stack-md" onSubmit={handleProfileSubmit}>
+        <label className="stack-xs">
+          <span className="field-label">Full name</span>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+            className="field-input"
+            placeholder="Your full name"
+          />
+        </label>
+
+        <label className="stack-xs">
+          <span className="field-label">Blood group</span>
+          <select
+            value={bloodGroup}
+            onChange={(event) => setBloodGroup(event.target.value)}
+            className="field-input"
+          >
+            <option value="">Select blood group</option>
+            {BLOOD_GROUPS.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {profileError ? <p className="form-error">{profileError}</p> : null}
+        {profileMessage ? <p className="form-success">{profileMessage}</p> : null}
+
         <div className="actions-row">
           <button
-            type="button"
+            type="submit"
             className="primary-button"
-            onClick={() => void handleSignOut()}
-            disabled={isSigningOut}
+            disabled={isSavingProfile}
           >
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
+            {isSavingProfile ? 'Saving...' : 'Save profile'}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void refreshProfile()}
+          >
+            Refresh profile
           </button>
         </div>
-      </section>
+      </form>
+    </section>
+  )
+
+  const sessionSection = (
+    <section className="glass-card panel stack-md">
+      <p className="eyebrow">Session</p>
+      <div className="actions-row session-actions">
+        <button
+          type="button"
+          className="primary-button session-signout-button"
+          onClick={() => void handleSignOut()}
+          disabled={isSigningOut}
+        >
+          {isSigningOut ? 'Signing out...' : 'Sign out'}
+        </button>
+      </div>
+    </section>
+  )
+
+  return (
+    <div className="stack-lg">
+      {adminSection}
+      {settingsSection}
+      {profileSection}
+      {themePreferenceCard}
+      {sessionSection}
     </div>
   )
 }
@@ -445,9 +456,8 @@ function ThemePreferenceCard() {
   return (
     <section className="glass-card panel stack-md">
       <p className="eyebrow">Appearance</p>
-      <h2 className="panel-title">Theme</h2>
       <label className="stack-xs">
-        <span className="field-label">Theme mode</span>
+        <span className="field-label">Mode</span>
         <select
           value={mode}
           onChange={handleThemeChange}

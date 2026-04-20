@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
-import InstallAppButton from './InstallAppButton'
+import InstallAppPrompt from './InstallAppPrompt'
 import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
 
 type EventTitleContextValue = {
@@ -53,8 +53,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     Boolean(user && !profile && !isSettingsRoute)
   const showBottomNav =
     authStatus === 'signed-in' && Boolean(user && profile?.is_approved) && !isAuthScreen
-  const showInstallButtonInTopbar =
-    !(pathname === '/' && authStatus !== 'signed-in')
 
   const topbarTitle = isEventRoute
     ? eventTitle ?? pageMeta.title
@@ -75,8 +73,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="topbar-actions">
-            {showInstallButtonInTopbar ? <InstallAppButton /> : null}
-
             {isEventRoute ? null : isDashboardRoute && user && profile?.is_approved ? (
               <button
                 type="button"
@@ -108,6 +104,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         )}
 
         {showBottomNav ? <BottomNav /> : null}
+        <InstallAppPrompt />
       </div>
     </div>
   )
