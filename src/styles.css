@@ -203,7 +203,15 @@ textarea {
   padding:
     var(--mobile-frame-top-space)
     var(--mobile-frame-inline-space)
-    calc(var(--mobile-frame-bottom-space) + env(safe-area-inset-bottom));
+    calc(var(--mobile-frame-bottom-offset, var(--mobile-frame-bottom-space)) + env(safe-area-inset-bottom));
+}
+
+.mobile-frame-no-nav {
+  --mobile-frame-bottom-offset: 1.4rem;
+}
+
+.mobile-frame-with-nav {
+  --mobile-frame-bottom-offset: var(--mobile-frame-bottom-space);
 }
 
 .content-shell,
@@ -1772,6 +1780,7 @@ textarea:focus-visible {
   position: fixed;
   left: 50%;
   bottom: env(safe-area-inset-bottom);
+  z-index: 25;
   transform: translateX(-50%);
   width: min(calc(100% - 2rem), 28rem);
   display: grid;

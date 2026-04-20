@@ -40,6 +40,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const showPendingScreen =
     user && profile && !profile.is_approved && !isSettingsRoute
   const showProfileSetupScreen = user && !profile && !isLoading && !isSettingsRoute
+  const showBottomNav = Boolean(user && profile?.is_approved) && !isAuthScreen
 
   const topbarTitle = isEventRoute
     ? eventTitle ?? pageMeta.title
@@ -50,7 +51,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
       <div className="app-backdrop app-backdrop-primary" />
       <div className="app-backdrop app-backdrop-secondary" />
 
-      <div className="mobile-frame">
+      <div className={`mobile-frame ${showBottomNav ? 'mobile-frame-with-nav' : 'mobile-frame-no-nav'}`}>
         <header className="glass-card topbar">
           <div className="topbar-copy">
             {!isEventRoute ? (
@@ -87,7 +88,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
           </EventTitleContext.Provider>
         )}
 
-        {!isAuthScreen ? <BottomNav /> : null}
+        {showBottomNav ? <BottomNav /> : null}
       </div>
     </div>
   )
