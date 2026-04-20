@@ -19,6 +19,58 @@ export const Route = createFileRoute('/')({
   component: HomePage,
 })
 
+const GUEST_HERO_METRICS = [
+  { value: '3', label: 'event modes' },
+  { value: '1', label: 'shared dashboard' },
+  { value: '24/7', label: 'member visibility' },
+] as const
+
+const GUEST_PREVIEW_ITEMS = [
+  {
+    title: 'Friday Cricket Meetup',
+    meta: 'Public plan with date, status, and captain ready to go.',
+  },
+  {
+    title: 'Monthly Fund Tracker',
+    meta: 'Track contributions without losing updates in chat.',
+  },
+  {
+    title: 'Random Picker Night',
+    meta: 'Settle the next choice fast when the group cannot decide.',
+  },
+] as const
+
+const GUEST_FEATURES = [
+  {
+    eyebrow: 'Organized',
+    title: 'Build events without chat chaos',
+    copy: 'Create general events, collect money, or run a random picker from one clean flow.',
+  },
+  {
+    eyebrow: 'Shared visibility',
+    title: 'Keep members aligned on what is happening',
+    copy: 'Everyone sees the same date, status, and next action without scrolling through messages.',
+  },
+] as const
+
+const GUEST_JOURNEY = [
+  {
+    step: '01',
+    title: 'Create',
+    copy: 'Start an event with the exact mode your group needs.',
+  },
+  {
+    step: '02',
+    title: 'Invite',
+    copy: 'Open it publicly or keep it private for a smaller circle.',
+  },
+  {
+    step: '03',
+    title: 'Run it',
+    copy: 'Track updates, members, and money from the same dashboard.',
+  },
+] as const
+
 function HomePage() {
   const navigate = Route.useNavigate()
   const { user, profile, isLoading } = useAuth()
@@ -188,22 +240,7 @@ function HomePage() {
   }
 
   if (!user) {
-    return (
-      <div className="stack-lg">
-        <section className="glass-card panel hero-panel">
-          <p className="eyebrow">Group management</p>
-          <h2 className="hero-title">Friends Adda keeps events, money, and roles in one place.</h2>
-          <div className="actions-row">
-            <Link to="/signup" className="primary-button">
-              Create account
-            </Link>
-            <Link to="/login" className="secondary-button">
-              Log in
-            </Link>
-          </div>
-        </section>
-      </div>
-    )
+    return <GuestLanding />
   }
 
   if (!profile?.is_approved) {
@@ -419,6 +456,111 @@ function HomePage() {
         </section>
       ) : null}
 
+    </div>
+  )
+}
+
+function GuestLanding() {
+  return (
+    <div className="stack-lg guest-home">
+      <section className="glass-card panel guest-hero">
+        <div className="stack-md guest-hero-copy">
+          <div className="stack-sm">
+            <div className="guest-pill-row" aria-hidden="true">
+              <span className="guest-pill">Events</span>
+              <span className="guest-pill">Funds</span>
+              <span className="guest-pill">Members</span>
+            </div>
+            <p className="eyebrow">Friends Adda</p>
+            <h2 className="guest-home-title">
+              Plan hangouts, track money, and keep every member in sync.
+            </h2>
+            <p className="muted-copy guest-home-copy">
+              A larger landing screen for guests that shows how the app keeps
+              your group organized from the first invite to the final update.
+            </p>
+          </div>
+
+          <div className="actions-row guest-hero-actions">
+            <Link to="/signup" className="primary-button guest-hero-button">
+              Create account
+            </Link>
+            <Link to="/login" className="secondary-button guest-hero-button">
+              Log in
+            </Link>
+          </div>
+        </div>
+
+        <div className="guest-hero-showcase">
+          <div className="guest-hero-orb guest-hero-orb-primary" aria-hidden="true" />
+          <div className="guest-hero-orb guest-hero-orb-secondary" aria-hidden="true" />
+
+          <div className="glass-card guest-showcase-card">
+            <div className="guest-showcase-head">
+              <div className="stack-xs">
+                <p className="eyebrow guest-showcase-kicker">Live preview</p>
+                <h3 className="panel-title guest-showcase-title">
+                  One home for every group plan.
+                </h3>
+              </div>
+              <span className="guest-live-badge">Sync</span>
+            </div>
+
+            <div className="guest-metric-grid">
+              {GUEST_HERO_METRICS.map((metric) => (
+                <article key={metric.label} className="guest-metric-card">
+                  <strong className="guest-metric-value">{metric.value}</strong>
+                  <span className="guest-metric-label">{metric.label}</span>
+                </article>
+              ))}
+            </div>
+
+            <div className="guest-preview-list">
+              {GUEST_PREVIEW_ITEMS.map((item) => (
+                <article key={item.title} className="guest-preview-item">
+                  <div className="guest-preview-dot" aria-hidden="true" />
+                  <div className="stack-xs">
+                    <strong className="guest-preview-title">{item.title}</strong>
+                    <p className="guest-preview-meta">{item.meta}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="guest-feature-grid">
+        {GUEST_FEATURES.map((feature) => (
+          <article
+            key={feature.title}
+            className="glass-card panel guest-feature-card stack-sm"
+          >
+            <p className="eyebrow">{feature.eyebrow}</p>
+            <h3 className="panel-title guest-feature-title">{feature.title}</h3>
+            <p className="muted-copy">{feature.copy}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="glass-card panel guest-journey">
+        <div className="stack-xs">
+          <p className="eyebrow">How it works</p>
+          <h3 className="panel-title">Go from invite to active event in minutes.</h3>
+        </div>
+
+        <div className="guest-journey-grid">
+          {GUEST_JOURNEY.map((item) => (
+            <article key={item.step} className="guest-journey-step">
+              <span className="guest-journey-number">{item.step}</span>
+              <div className="stack-xs">
+                <strong className="guest-journey-title">{item.title}</strong>
+                <p className="guest-journey-copy">{item.copy}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
