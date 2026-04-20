@@ -28,6 +28,7 @@ export type FundTrackerMember = {
     email: string
     full_name: string | null
     role: 'admin' | 'member'
+    blood_group: string | null
   }
 }
 

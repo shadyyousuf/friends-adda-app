@@ -54,9 +54,6 @@ function HomePage() {
       : dashboardQuery.error
         ? 'Failed to load dashboard.'
         : null
-  const isDashboardLoading =
-    dashboardQuery.isPending || dashboardQuery.isRefetching
-
   useEffect(() => {
     function handleDashboardRefresh() {
       void dashboardQuery.refetch()

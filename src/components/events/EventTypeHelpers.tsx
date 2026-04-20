@@ -57,12 +57,12 @@ export function formatEventRole(role: EventSubscriberWithProfile['event_role']) 
 }
 
 type MemberAvatarInput = {
-  full_name: string | null
-  email: string
+  full_name?: string | null
+  email?: string
 } & {
   profiles?: {
-    full_name: string | null
-    email: string
+    full_name?: string | null
+    email?: string
   }
 }
 
@@ -76,10 +76,12 @@ export function MemberAvatar({
   avatarText?: string | null
 }) {
   const source = member.profiles ?? member
+  const fullName = source.full_name ?? null
+  const email = source.email ?? ''
   const name = getMemberName({
     profiles: {
-      full_name: source.full_name,
-      email: source.email,
+      full_name: fullName,
+      email,
     },
   })
   const displayText = avatarText?.trim() || name.charAt(0).toUpperCase()

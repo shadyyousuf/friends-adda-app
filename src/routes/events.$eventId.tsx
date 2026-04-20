@@ -115,7 +115,7 @@ function getEventMenuItems(
       ...(canManageMembers
         ? [
             {
-              type: 'invite-friends',
+              type: 'invite-friends' as const,
               label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
@@ -125,7 +125,7 @@ function getEventMenuItems(
   } else if (eventType === 'random_picker') {
     items.push(
       {
-        type: 'event-details',
+        type: 'event-details' as const,
         label: 'Event details',
         icon: <Info size={16} />,
       },
@@ -137,7 +137,7 @@ function getEventMenuItems(
       ...(canManageMembers
         ? [
             {
-              type: 'invite-friends',
+              type: 'invite-friends' as const,
               label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
@@ -147,7 +147,7 @@ function getEventMenuItems(
   } else {
     if (canEditEvent) {
       items.push({
-        type: 'edit-event',
+        type: 'edit-event' as const,
         label: 'Edit event',
         icon: <Pencil size={16} />,
       })
@@ -159,10 +159,10 @@ function getEventMenuItems(
         label: 'Members',
         icon: <Users size={16} />,
       },
-      ...(canManageMembers
+        ...(canManageMembers
         ? [
             {
-              type: 'invite-friends',
+              type: 'invite-friends' as const,
               label: 'Add Friend',
               icon: <UserRoundPlus size={16} />,
             },
@@ -171,14 +171,14 @@ function getEventMenuItems(
     )
   }
 
-  if (canDelete) {
-    items.push({
-      type: 'delete-event',
-      label: 'Delete event',
-      icon: <Trash2 size={16} />,
-      isDanger: true,
-    })
-  }
+    if (canDelete) {
+      items.push({
+        type: 'delete-event' as const,
+        label: 'Delete event',
+        icon: <Trash2 size={16} />,
+        isDanger: true,
+      })
+    }
 
   return items
 }
@@ -1287,14 +1287,14 @@ function EventDetailPage() {
                           setEditEventDate(detail.event?.event_date.split('T')[0] ?? '')
                           setEditVisibility(detail.event?.visibility ?? 'public')
                           setEditTargetAmount(
-                            detail.event.type === 'fund_tracker' &&
-                              detail.event.target_amount
+                            detail.event?.type === 'fund_tracker' &&
+                              detail.event?.target_amount
                               ? String(detail.event.target_amount)
                               : '',
                           )
                           setEditMonthlyDefaultAmount(
-                            detail.event.type === 'fund_tracker' &&
-                              detail.event.monthly_default_amount
+                            detail.event?.type === 'fund_tracker' &&
+                              detail.event?.monthly_default_amount
                               ? String(detail.event.monthly_default_amount)
                               : '',
                           )

@@ -80,7 +80,7 @@ export function MemberDirectoryCard({
     setIsMenuOpen(false)
   }
 
-  const toggleMenu = (event: MouseEvent<HTMLSummaryElement>) => {
+  const toggleMenu = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault()
     event.stopPropagation()
     setIsMenuOpen((previouslyOpen) => !previouslyOpen)
@@ -141,7 +141,15 @@ export function MemberDirectoryCard({
       <div
         className={`member-directory-meta${metaClassName ? ` ${metaClassName}` : ''}`}
       >
-        {sideContent ? <div className="member-directory-side-content">{sideContent}</div> : null}
+      {sideContent ? (
+        <div
+          className={`member-directory-side-content${
+            sideContentClassName ? ` ${sideContentClassName}` : ''
+          }`}
+        >
+          {sideContent}
+        </div>
+      ) : null}
         {canShowMenu || primaryAction ? (
           <details
             ref={menuRef}

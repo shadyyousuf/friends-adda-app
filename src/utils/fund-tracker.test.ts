@@ -19,6 +19,7 @@ const members: FundTrackerMember[] = [
       email: 'captain@example.com',
       full_name: 'Captain',
       role: 'member',
+      blood_group: null,
     },
   },
   {
@@ -29,6 +30,7 @@ const members: FundTrackerMember[] = [
       email: 'member@example.com',
       full_name: 'Member',
       role: 'member',
+      blood_group: null,
     },
   },
 ]

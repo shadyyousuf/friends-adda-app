@@ -7,26 +7,31 @@ export type Database = {
         Row: { id: string, full_name: string | null, email: string, role: 'admin' | 'member', is_approved: boolean | null, blood_group: string | null, created_at: string }
         Insert: { id: string, full_name?: string | null, email: string, role?: 'admin' | 'member', is_approved?: boolean | null, blood_group?: string | null, created_at?: string }
         Update: { id?: string, full_name?: string | null, email?: string, role?: 'admin' | 'member', is_approved?: boolean | null, blood_group?: string | null, created_at?: string }
+        Relationships: []
       }
       events: {
         Row: { id: string, title: string, description: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date: string, status: 'open' | 'active' | 'completed', visibility: 'public' | 'private', target_amount: number | null, monthly_default_amount: number | null, created_by: string, created_at: string }
         Insert: { id?: string, title: string, description?: string | null, type: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, monthly_default_amount?: number | null, created_by: string, created_at?: string }
         Update: { id?: string, title?: string, description?: string | null, type?: 'general' | 'fund_tracker' | 'random_picker', event_date?: string, status?: 'open' | 'active' | 'completed', visibility?: 'public' | 'private', target_amount?: number | null, monthly_default_amount?: number | null, created_by?: string, created_at?: string }
+        Relationships: []
       }
       event_subscribers: {
         Row: { event_id: string, user_id: string, event_role: 'captain' | 'co-captain' | 'member', joined_at: string }
         Insert: { event_id: string, user_id: string, event_role?: 'captain' | 'co-captain' | 'member', joined_at?: string }
         Update: { event_id?: string, user_id?: string, event_role?: 'captain' | 'co-captain' | 'member', joined_at?: string }
+        Relationships: []
       }
       event_funds: {
         Row: { id: string, event_id: string, user_id: string, amount: number, month: number, year: number, status: 'pending' | 'paid', created_at: string }
         Insert: { id?: string, event_id: string, user_id: string, amount: number, month: number, year: number, status?: 'pending' | 'paid', created_at?: string }
         Update: { id?: string, event_id?: string, user_id?: string, amount?: number, month?: number, year?: number, status?: 'pending' | 'paid', created_at?: string }
+        Relationships: []
       }
       event_activities: {
         Row: { id: string, event_id: string, activity_type: string, payload: any | null, created_at: string }
         Insert: { id?: string, event_id: string, activity_type: string, payload?: any | null, created_at?: string }
         Update: { id?: string, event_id?: string, activity_type?: string, payload?: any | null, created_at?: string }
+        Relationships: []
       }
     }
     Views: {

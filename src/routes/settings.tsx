@@ -4,7 +4,6 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '../components/AuthProvider'
 import {
   MemberDirectoryCard,
-  type MemberDirectoryMenuAction,
 } from '../components/MemberDirectoryCard'
 import { signOut } from '../utils/auth'
 import {
@@ -54,11 +53,10 @@ function SettingsPage() {
     enabled: isAdmin,
   })
   const pendingProfiles = pendingProfilesQuery.data ?? []
-  const approvedMembers = approvedMembersQuery.data ?? []
   const queryAdminError =
-    pendingProfilesQuery.error instanceof Error
-      ? pendingProfilesQuery.error.message
-      : approvedMembersQuery.error instanceof Error
+        pendingProfilesQuery.error instanceof Error
+        ? pendingProfilesQuery.error.message
+        : approvedMembersQuery.error instanceof Error
         ? approvedMembersQuery.error.message
         : pendingProfilesQuery.error || approvedMembersQuery.error
           ? 'Failed to load admin data.'
@@ -300,18 +298,18 @@ function SettingsPage() {
                         onClick: () => void handlePromote(pendingProfile.id),
                         disabled: pendingProfile.role === 'admin',
                       },
-                      ...(pendingProfile.id !== user.id
-                        ? [
-                            {
-                              id: `remove:${pendingProfile.id}`,
-                              label: 'Remove from app',
-                              loadingLabel: 'Removing...',
-                              onClick: () => void handleRemoveFromApp(pendingProfile.id),
-                              isDanger: true,
-                            },
-                          ]
-                        : []),
-                    ]}
+                        ...(pendingProfile.id !== user.id
+                          ? [
+                              {
+                                id: `remove:${pendingProfile.id}`,
+                                label: 'Remove from app',
+                                loadingLabel: 'Removing...',
+                                onClick: () => void handleRemoveFromApp(pendingProfile.id),
+                                isDanger: true as const,
+                              },
+                            ]
+                          : []),
+                      ]}
                     activeAction={activeMemberAction}
                   />
                 ))}

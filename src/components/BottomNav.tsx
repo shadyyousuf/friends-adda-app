@@ -31,7 +31,8 @@ export default function BottomNav() {
       })}
 
       <Link
-        to="/?create=1"
+        to="/"
+        search={{ create: '1' }}
         className="bottom-nav-create-link"
         aria-label="Create event"
         title="Create event"
