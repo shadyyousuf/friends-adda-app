@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
+import InstallAppButton from './InstallAppButton'
 import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
 
 type EventTitleContextValue = {
@@ -41,6 +42,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     user && profile && !profile.is_approved && !isSettingsRoute
   const showProfileSetupScreen = user && !profile && !isLoading && !isSettingsRoute
   const showBottomNav = Boolean(user && profile?.is_approved) && !isAuthScreen
+  const showInstallButtonInTopbar = !(pathname === '/' && !user)
 
   const topbarTitle = isEventRoute
     ? eventTitle ?? pageMeta.title
@@ -59,21 +61,26 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
             ) : null}
             <h1 className="topbar-title">{topbarTitle}</h1>
           </div>
-          {isEventRoute ? null : isDashboardRoute && user && profile?.is_approved ? (
-            <button
-              type="button"
-              className="topbar-action-button"
-              aria-label="Refresh dashboard"
-              title="Refresh dashboard"
-              onClick={() => {
-                window.dispatchEvent(new Event(DASHBOARD_REFRESH_EVENT))
-              }}
-            >
-              <RotateCw size={18} />
-            </button>
-          ) : isEventRoute ? null : (
-            <div className={`status-chip ${status.className}`}>{status.label}</div>
-          )}
+
+          <div className="topbar-actions">
+            {showInstallButtonInTopbar ? <InstallAppButton /> : null}
+
+            {isEventRoute ? null : isDashboardRoute && user && profile?.is_approved ? (
+              <button
+                type="button"
+                className="topbar-action-button"
+                aria-label="Refresh dashboard"
+                title="Refresh dashboard"
+                onClick={() => {
+                  window.dispatchEvent(new Event(DASHBOARD_REFRESH_EVENT))
+                }}
+              >
+                <RotateCw size={18} />
+              </button>
+            ) : (
+              <div className={`status-chip ${status.className}`}>{status.label}</div>
+            )}
+          </div>
         </header>
 
         {showPendingScreen ? (

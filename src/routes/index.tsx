@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
+import InstallAppButton from '../components/InstallAppButton'
 import {
   createEventWithCaptain,
   dashboardQueryOptions,
@@ -488,6 +489,7 @@ function GuestLanding() {
             <Link to="/login" className="secondary-button guest-hero-button">
               Log in
             </Link>
+            <InstallAppButton variant="hero" />
           </div>
         </div>
 

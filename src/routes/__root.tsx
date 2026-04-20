@@ -24,9 +24,35 @@ export const Route = createRootRouteWithContext<{
         name: 'viewport',
         content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
+      {
+        name: 'description',
+        content: 'Plan hangouts, track money, and keep every member in sync.',
+      },
+      {
+        name: 'theme-color',
+        media: '(prefers-color-scheme: dark)',
+        content: '#08111e',
+      },
+      {
+        name: 'theme-color',
+        media: '(prefers-color-scheme: light)',
+        content: '#f4f8fc',
+      },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: 'Friends Adda' },
+      {
+        name: 'apple-mobile-web-app-status-bar-style',
+        content: 'black-translucent',
+      },
       { title: 'Friends Adda' },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'manifest', href: '/manifest.json' },
+      { rel: 'icon', href: '/favicon.ico' },
+      { rel: 'apple-touch-icon', href: '/logo192.png' },
+    ],
   }),
   shellComponent: RootDocument,
 })
