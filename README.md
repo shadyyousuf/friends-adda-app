@@ -32,12 +32,25 @@ Installed-app metadata comes from [`public/manifest.json`](public/manifest.json)
 
 The manifest is intentionally checked in and used directly. [`vite.config.ts`](vite.config.ts) sets `manifest: false`, so `vite-plugin-pwa` does not generate a replacement manifest at build time.
 
-Top-level assets in `public/` are now the source of truth for installed-app icons:
+Transparent browser/UI logo assets in `public/` remain unchanged:
 
+- `/logo.png`
 - `/logo192.png`
 - `/logo512.png`
 - `/logo1024.png`
 - `/favicon.ico`
+
+Dedicated opaque install assets now drive installed-app surfaces:
+
+- `/install-icon-192.png`
+- `/install-icon-512.png`
+- `/install-icon-1024.png`
+
+Installed-app surfaces use the opaque install assets:
+
+- manifest `icons` use `/install-icon-192.png` and `/install-icon-512.png`
+- manifest shortcut icons use `/install-icon-192.png`
+- `apple-touch-icon` uses `/install-icon-1024.png`
 
 Files under `public/pwa/` are kept for install screenshots only:
 

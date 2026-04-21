@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{
       { rel: 'manifest', href: '/manifest.json' },
       { rel: 'icon', type: 'image/png', href: '/logo.png' },
       { rel: 'icon', href: '/favicon.ico' },
-      { rel: 'apple-touch-icon', href: '/logo1024.png' },
+      { rel: 'apple-touch-icon', href: '/install-icon-1024.png' },
     ],
   }),
   errorComponent: ({ error, reset }) => (

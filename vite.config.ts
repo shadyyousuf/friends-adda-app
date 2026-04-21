@@ -28,6 +28,9 @@ const config = defineConfig({
       includeAssets: [
         'manifest.json',
         'favicon.ico',
+        'install-icon-192.png',
+        'install-icon-512.png',
+        'install-icon-1024.png',
         'logo.png',
         'logo192.png',
         'logo512.png',
