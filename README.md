@@ -1,193 +1,51 @@
-Welcome to your new TanStack Start app! 
+# Friends Adda
 
-# Getting Started
+Friends Adda is a TanStack Start + Vite PWA for managing group events, member approvals, and shared money tracking with Supabase.
 
-To run this application:
+## Local setup
 
-```bash
-npm install
-npm run dev
-```
+1. Install dependencies with `pnpm install`.
+2. Copy `.env.example` to `.env`.
+3. Set these required environment variables in `.env`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. Start the app with `pnpm dev`.
 
-# Building For Production
+The dev server prefers port `3000`. If that port is already in use, Vite will automatically move to the next available port such as `3001`.
 
-To build this application for production:
+If either required Supabase variable is missing, the app fails fast during startup from [`src/utils/supabase.ts`](src/utils/supabase.ts).
 
-```bash
-npm run build
-```
+## Available scripts
 
-## Testing
+- `pnpm dev` starts the local development server.
+- `pnpm build` builds the production client and server bundles.
+- `pnpm preview` previews the production build locally.
+- `pnpm typecheck` runs TypeScript without emitting files.
+- `pnpm test` runs the Vitest suite.
+- `pnpm test:e2e` runs the Playwright suite.
+- `pnpm lint` runs ESLint.
+- `pnpm format:check` checks formatting with Prettier.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+## PWA assets
 
-```bash
-npm run test
-```
+Installed-app metadata comes from [`public/manifest.json`](public/manifest.json). Browser tab icons and Apple touch icons are linked from [`src/routes/__root.tsx`](src/routes/__root.tsx), but installed PWAs use the manifest entries instead.
 
-## Styling
+The manifest is intentionally checked in and used directly. [`vite.config.ts`](vite.config.ts) sets `manifest: false`, so `vite-plugin-pwa` does not generate a replacement manifest at build time.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+Top-level assets in `public/` are now the source of truth for installed-app icons:
 
-### Removing Tailwind CSS
+- `/logo192.png`
+- `/logo512.png`
+- `/logo1024.png`
+- `/favicon.ico`
 
-If you prefer not to use Tailwind CSS:
+Files under `public/pwa/` are kept for install screenshots only:
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
+- `/pwa/dashboard-seeded.svg`
+- `/pwa/event-detail-seeded.svg`
 
+If you change installed-app icons and still see the previous icon after rebuilding:
 
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+1. Uninstall the previously installed Friends Adda app.
+2. Clear site data or do a hard refresh in the browser.
+3. Reinstall the app so the browser fetches the updated manifest and cached assets.

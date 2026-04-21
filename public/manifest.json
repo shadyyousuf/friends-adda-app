@@ -11,8 +11,8 @@
       "purpose": "any"
     },
     {
-      "src": "/pwa/icon-maskable-192.svg",
-      "type": "image/svg+xml",
+      "src": "/logo192.png",
+      "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
@@ -23,8 +23,8 @@
       "purpose": "any"
     },
     {
-      "src": "/pwa/icon-maskable-512.svg",
-      "type": "image/svg+xml",
+      "src": "/logo512.png",
+      "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
     }
