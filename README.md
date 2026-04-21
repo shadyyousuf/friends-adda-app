@@ -1,38 +1,249 @@
 # Friends Adda
 
-Friends Adda is a TanStack Start + Vite PWA for managing group events, member approvals, and shared money tracking with Supabase.
+Friends Adda is a mobile-first group planning app built with TanStack Start, React 19, Vite, and Supabase. It supports shared event planning, member approval flows, fund tracking, random-picker event flows, and an installable PWA shell.
 
-## Local setup
+This repository uses `pnpm` for all package management and app development workflows.
 
-1. Install dependencies with `pnpm install`.
-2. Copy `.env.example` to `.env`.
-3. Set these required environment variables in `.env`:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Start the app with `pnpm dev`.
+## Stack
 
-The dev server prefers port `3000`. If that port is already in use, Vite will automatically move to the next available port such as `3001`.
+- TanStack Start for app structure, routing, and SSR integration
+- TanStack Router with file-based routes in `src/routes`
+- TanStack Query for server-state management and cache invalidation
+- React 19 + TypeScript
+- Vite 8 for local development and production builds
+- Tailwind CSS v4 via `@tailwindcss/vite`
+- Supabase for auth, database access, and schema typing
+- Vitest + Testing Library for unit/component tests
+- Playwright for end-to-end testing
+- `vite-plugin-pwa` with an inject-manifest service worker for production PWA behavior
 
-If either required Supabase variable is missing, the app fails fast during startup from [`src/utils/supabase.ts`](src/utils/supabase.ts).
+## Requirements
 
-## Available scripts
+- `pnpm` 10.x
+- A working Supabase project
+- A recent Node.js version compatible with the current Vite/TanStack toolchain
 
-- `pnpm dev` starts the local development server.
-- `pnpm build` builds the production client and server bundles.
-- `pnpm preview` previews the production build locally.
-- `pnpm typecheck` runs TypeScript without emitting files.
-- `pnpm test` runs the Vitest suite.
-- `pnpm test:e2e` runs the Playwright suite.
-- `pnpm lint` runs ESLint.
-- `pnpm format:check` checks formatting with Prettier.
+The repo declares its package manager in `package.json`:
 
-## PWA assets
+```json
+"packageManager": "pnpm@10.30.3"
+```
 
-Installed-app metadata comes from [`public/manifest.json`](public/manifest.json). Browser tab icons and Apple touch icons are linked from [`src/routes/__root.tsx`](src/routes/__root.tsx), but installed PWAs use the manifest entries instead.
+## Quick Start
 
-The manifest is intentionally checked in and used directly. [`vite.config.ts`](vite.config.ts) sets `manifest: false`, so `vite-plugin-pwa` does not generate a replacement manifest at build time.
+1. Install dependencies:
 
-Transparent browser/UI logo assets in `public/` remain unchanged:
+   ```bash
+   pnpm install
+   ```
+
+2. Copy the environment template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Set the required variables in `.env`:
+
+   ```bash
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. Apply the database schema from `supabase_schema.sql` to your Supabase project.
+
+5. Start the app:
+
+   ```bash
+   pnpm dev
+   ```
+
+The development server prefers port `3000`. If that port is unavailable, Vite may move to the next free port.
+
+## Environment Variables
+
+This app currently requires only two runtime variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+The app fails fast during startup if either variable is missing. That check lives in `src/utils/supabase.ts`.
+
+Test runs do not require a real `.env` file because `vitest.setup.ts` provides placeholder values for the Supabase variables.
+
+## Supabase Setup
+
+The repo includes the current schema in:
+
+- `supabase_schema.sql`
+
+To bootstrap a new environment:
+
+1. Create a Supabase project.
+2. Open the SQL editor in Supabase.
+3. Run the contents of `supabase_schema.sql`.
+4. Copy your project URL and anon key into `.env`.
+
+The schema file contains:
+
+- table definitions
+- RLS policies
+- RPC functions used by the app
+
+If you add new data features, update the schema and then keep the TypeScript-facing contract in `src/utils/supabase.ts` aligned with the database shape.
+
+## Development Commands
+
+- `pnpm dev` starts the local development server
+- `pnpm build` builds the production client and server bundles
+- `pnpm preview` previews the production build locally
+- `pnpm typecheck` runs TypeScript without emitting files
+- `pnpm test` runs the Vitest suite
+- `pnpm test:e2e` runs the Playwright suite
+- `pnpm lint` runs ESLint
+- `pnpm lint:fix` runs ESLint with autofix
+- `pnpm format` formats the repo with Prettier
+- `pnpm format:check` checks formatting with Prettier
+
+## Project Structure
+
+Top-level files and folders you will touch most often:
+
+- `src/routes/` file-based TanStack Router routes
+- `src/components/` reusable UI and route-level supporting components
+- `src/components/events/` event-type-specific UI and detail flows
+- `src/hooks/` shared hooks for mutation state, PWA state, theme state, and refresh behavior
+- `src/utils/` data fetching, Supabase access, query client setup, helpers, and typed utilities
+- `public/` static assets including the checked-in manifest and install icons
+- `tests/` Playwright end-to-end tests
+- `supabase_schema.sql` database bootstrap and policy source of truth
+- `vite.config.ts` Vite, TanStack Start, Nitro, Tailwind, and PWA configuration
+- `vitest.config.ts` and `vitest.setup.ts` unit/component test configuration
+
+Useful generated/build folders:
+
+- `.tanstack/`
+- `.output/`
+- `dist/`
+- `dev-dist/`
+- `test-results/`
+
+These are generated artifacts, not primary source files.
+
+## Architecture Notes
+
+### Routing
+
+- Routes are defined with `createFileRoute(...)` in `src/routes/`.
+- `src/routeTree.gen.ts` is generated by TanStack Router.
+- Do not manually edit `src/routeTree.gen.ts`.
+
+### Data Fetching
+
+- Query configuration lives in utility modules such as `src/utils/events.ts` and `src/utils/profile.ts`.
+- The shared query client is created in `src/utils/query-client.ts`.
+- Query persistence is enabled for selected roots using localStorage:
+  - `events`
+  - `profiles`
+
+That persisted query cache is version-busted with `__APP_VERSION__` and expires after 24 hours.
+
+### Auth and Session Flow
+
+- Auth state is managed in `src/components/AuthProvider.tsx`.
+- Supabase auth and profile hydration happen there.
+- The root route wraps the app with the auth provider in `src/routes/__root.tsx`.
+
+### Event Features
+
+Event-related feature logic is split between:
+
+- route screens in `src/routes/events.$eventId.tsx`
+- reusable event UI under `src/components/events/`
+- data mutations and queries in `src/utils/events.ts`
+- mutation invalidation helpers in `src/hooks/useEventDetailMutations.ts`
+
+### Theme
+
+- Theme preference is stored in localStorage
+- Theme initialization starts in `src/routes/__root.tsx`
+- Theme helpers live in `src/utils/theme.ts`
+
+### PWA
+
+- Installed-app metadata comes from `public/manifest.json`
+- The project uses `vite-plugin-pwa` with `strategies: 'injectManifest'`
+- The service worker source is `src/sw.ts`
+- Development service worker registration is disabled on localhost
+- Production PWA behavior is still enabled in build output
+
+The manifest is intentionally checked in directly. `vite.config.ts` sets `manifest: false`, so the plugin does not generate a replacement manifest file.
+
+## How to Add New Features
+
+Follow the current repo shape instead of introducing new patterns unless there is a clear reason.
+
+### 1. Put route screens in `src/routes`
+
+If the feature is page-level, add or update a file under `src/routes/` using TanStack Router file-route conventions.
+
+Examples already in the repo:
+
+- `src/routes/index.tsx`
+- `src/routes/events.$eventId.tsx`
+- `src/routes/history.tsx`
+
+### 2. Put reusable UI in `src/components`
+
+If the UI is reused or route code is getting too large, extract components into `src/components/` or a relevant subfolder like `src/components/events/`.
+
+### 3. Keep server-state access in `src/utils`
+
+For data access:
+
+- Supabase queries and mutations belong in utility modules
+- Query keys and query options should live close to the data helpers
+- Route/components should consume those helpers rather than inline low-level Supabase calls repeatedly
+
+### 4. Invalidate queries intentionally
+
+When adding write flows:
+
+- update the relevant query helper module
+- invalidate only the affected query roots
+- reuse mutation helpers where possible
+
+The existing `useEventDetailMutations` hook is a good reference for event-detail mutations.
+
+### 5. Keep database and typings aligned
+
+If a feature changes the schema:
+
+1. update `supabase_schema.sql`
+2. update `src/utils/supabase.ts`
+3. update any query/mutation helpers that depend on that shape
+4. add or update tests
+
+## Testing Guidance
+
+Unit and component tests already cover utilities, auth state, route behavior, and UI components.
+
+When adding new work:
+
+- add focused tests close to the feature when practical
+- prefer utility tests for data-shaping logic
+- prefer component or route tests for visibility/permission behavior
+- use Playwright only when the behavior requires browser-level integration
+
+Current test-related files include:
+
+- `src/**/*.test.ts`
+- `src/**/*.test.tsx`
+- `tests/` for Playwright
+
+## PWA Assets and Icons
+
+Transparent browser/UI logo assets in `public/`:
 
 - `/logo.png`
 - `/logo192.png`
@@ -40,25 +251,42 @@ Transparent browser/UI logo assets in `public/` remain unchanged:
 - `/logo1024.png`
 - `/favicon.ico`
 
-Dedicated opaque install assets now drive installed-app surfaces:
+Opaque install assets used for installed-app surfaces:
 
 - `/install-icon-192.png`
 - `/install-icon-512.png`
 - `/install-icon-1024.png`
 
-Installed-app surfaces use the opaque install assets:
-
-- manifest `icons` use `/install-icon-192.png` and `/install-icon-512.png`
-- manifest shortcut icons use `/install-icon-192.png`
-- `apple-touch-icon` uses `/install-icon-1024.png`
-
-Files under `public/pwa/` are kept for install screenshots only:
+PWA screenshots stored in `public/pwa/`:
 
 - `/pwa/dashboard-seeded.svg`
 - `/pwa/event-detail-seeded.svg`
 
-If you change installed-app icons and still see the previous icon after rebuilding:
+If installed-app icons look stale after an update:
 
-1. Uninstall the previously installed Friends Adda app.
-2. Clear site data or do a hard refresh in the browser.
-3. Reinstall the app so the browser fetches the updated manifest and cached assets.
+1. uninstall the existing installed app
+2. clear site data or do a hard refresh
+3. reinstall the app so the browser fetches the latest manifest and cached assets
+
+## Notes for Contributors
+
+- Use `pnpm`, not `npm` or `yarn`, for dependency and script commands in this repo
+- Prefer updating existing patterns over introducing parallel architecture
+- Do not edit generated files such as `src/routeTree.gen.ts`
+- Keep documentation, schema, types, and tests aligned when you ship new features
+
+## Recommended Validation Before Opening a PR
+
+Run the minimum relevant checks for your change:
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm lint
+```
+
+If you changed PWA behavior or production build wiring, also run:
+
+```bash
+pnpm build
+```
