@@ -19,7 +19,14 @@ const config = defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: false,
-      includeAssets: ['manifest.json', 'favicon.ico', 'logo.png', 'logo192.png', 'logo512.png'],
+      includeAssets: [
+        'manifest.json',
+        'favicon.ico',
+        'logo.png',
+        'logo192.png',
+        'logo512.png',
+        'logo1024.png',
+      ],
       devOptions: {
         enabled: true,
       },

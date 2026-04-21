@@ -15,12 +15,18 @@
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
+    },
+    {
+      "src": "/logo1024.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "theme_color": "#08111e",
-  "background_color": "#08111e",
+  "background_color": "#000000",
   "categories": ["productivity", "social", "events"]
 }
