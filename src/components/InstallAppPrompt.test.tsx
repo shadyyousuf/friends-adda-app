@@ -108,7 +108,7 @@ describe('InstallAppPrompt', () => {
     expect(await screen.findByText('Install Friends Adda')).toBeTruthy()
   })
 
-  it('stays hidden after dismissal until the cooldown expires', async () => {
+  it('shows again after dismissal on a new lifecycle', async () => {
     mockNavigator({
       userAgent:
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
@@ -127,15 +127,25 @@ describe('InstallAppPrompt', () => {
     unmount()
     render(<InstallAppPrompt />)
 
-    await waitFor(() => {
-      expect(screen.queryByText('Install Friends Adda')).toBeNull()
-    })
+    expect(await screen.findByText('Install Friends Adda')).toBeTruthy()
+  })
 
-    window.localStorage.clear()
-    unmount()
+  it('cleans up the legacy dismissal key and still shows the prompt', async () => {
+    mockNavigator({
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    })
+    window.localStorage.setItem(
+      'friends-adda:install-prompt-dismissed-at',
+      String(Date.now()),
+    )
+
     render(<InstallAppPrompt />)
 
     expect(await screen.findByText('Install Friends Adda')).toBeTruthy()
+    expect(
+      window.localStorage.getItem('friends-adda:install-prompt-dismissed-at'),
+    ).toBeNull()
   })
 
   it('opens the native install prompt when available', async () => {
