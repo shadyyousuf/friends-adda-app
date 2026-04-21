@@ -1595,8 +1595,20 @@ textarea:focus-visible {
 }
 
 .add-members-search {
-  flex: 1 1 16rem;
+  width: 100%;
+  flex: 0 0 auto;
   min-width: 0;
+  align-self: stretch;
+}
+
+.add-members-search-input {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  height: 3rem;
+  margin: 0;
+  box-sizing: border-box;
+  line-height: 1.2;
 }
 
 .add-members-toolbar-actions {
@@ -1628,6 +1640,10 @@ textarea:focus-visible {
   cursor: pointer;
   user-select: none;
   justify-content: flex-start;
+}
+
+.add-member-meta {
+  min-width: 0;
 }
 
 .add-member-item.is-selected {

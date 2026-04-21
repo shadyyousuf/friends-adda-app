@@ -44,7 +44,7 @@ export default function AddMembersDrawer({
           <span className="field-label">Search members</span>
           <input
             type="text"
-            className="field-input"
+            className="field-input add-members-search-input"
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search by name or email"
@@ -78,7 +78,6 @@ export default function AddMembersDrawer({
                     <strong className="info-value">
                       {member.full_name || 'Unnamed member'}
                     </strong>
-                    <span className="field-label">{member.email}</span>
                     <span className="member-directory-role-badge">
                       {member.role === 'admin' ? 'App Admin' : 'Member'}
                     </span>
