@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
+import RefreshIconButton from '../components/RefreshIconButton'
 import {
   MemberDirectoryCard,
   type MemberDirectoryMenuAction,
@@ -34,6 +35,8 @@ function MembersPage() {
       : membersQuery.error
         ? 'Failed to load members.'
         : null
+  const isMembersRefreshing =
+    membersQuery.isPending || membersQuery.isRefetching
 
   const normalizedQuery = deferredQuery.trim().toLowerCase()
   const filteredMembers = members.filter((member) => {
@@ -114,16 +117,11 @@ function MembersPage() {
             <p className="eyebrow">Members</p>
             <h2 className="panel-title">Approved directory</h2>
           </div>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void membersQuery.refetch()}
-            disabled={membersQuery.isPending || membersQuery.isRefetching}
-          >
-            {membersQuery.isPending || membersQuery.isRefetching
-              ? 'Refreshing...'
-              : 'Refresh'}
-          </button>
+          <RefreshIconButton
+            label="Refresh members"
+            isRefreshing={isMembersRefreshing}
+            onClick={() => membersQuery.refetch()}
+          />
         </div>
         <label className="stack-xs">
           <span className="field-label">Search</span>

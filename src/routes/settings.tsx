@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
+import RefreshIconButton from '../components/RefreshIconButton'
 import {
   MemberDirectoryCard,
 } from '../components/MemberDirectoryCard'
@@ -38,6 +39,7 @@ function SettingsPage() {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [adminError, setAdminError] = useState<string | null>(null)
   const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
+  const [isRefreshingProfile, setIsRefreshingProfile] = useState(false)
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '')
@@ -62,6 +64,11 @@ function SettingsPage() {
         : pendingProfilesQuery.error || approvedMembersQuery.error
           ? 'Failed to load admin data.'
           : null
+  const isAdminRefreshing =
+    pendingProfilesQuery.isPending ||
+    pendingProfilesQuery.isRefetching ||
+    approvedMembersQuery.isPending ||
+    approvedMembersQuery.isRefetching
 
   async function handleSignOut() {
     setIsSigningOut(true)
@@ -98,6 +105,22 @@ function SettingsPage() {
       pendingProfilesQuery.refetch(),
       approvedMembersQuery.refetch(),
     ])
+  }
+
+  async function handleRefreshProfile() {
+    setProfileMessage(null)
+    setProfileError(null)
+    setIsRefreshingProfile(true)
+
+    try {
+      await refreshProfile()
+    } catch (error) {
+      setProfileError(
+        error instanceof Error ? error.message : 'Failed to refresh profile.',
+      )
+    } finally {
+      setIsRefreshingProfile(false)
+    }
   }
 
   async function handleApprove(userId: string) {
@@ -189,34 +212,17 @@ function SettingsPage() {
 
   const adminSection = isAdmin ? (
     <section className="glass-card panel stack-lg">
-      <div className="stack-sm">
+      <div className="section-inline-header">
         <p className="eyebrow">Admin</p>
-        <h2 className="panel-title">User approvals and promotion</h2>
+        <RefreshIconButton
+          label="Refresh admin lists"
+          isRefreshing={isAdminRefreshing}
+          onClick={refreshAdminLists}
+        />
       </div>
 
       {adminError ? <p className="form-error">{adminError}</p> : null}
       {queryAdminError ? <p className="form-error">{queryAdminError}</p> : null}
-
-      <div className="actions-row">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => void refreshAdminLists()}
-          disabled={
-            pendingProfilesQuery.isPending ||
-            pendingProfilesQuery.isRefetching ||
-            approvedMembersQuery.isPending ||
-            approvedMembersQuery.isRefetching
-          }
-        >
-          {pendingProfilesQuery.isPending ||
-          pendingProfilesQuery.isRefetching ||
-          approvedMembersQuery.isPending ||
-          approvedMembersQuery.isRefetching
-            ? 'Refreshing...'
-            : 'Refresh admin lists'}
-        </button>
-      </div>
 
       <div className="stack-md">
         <h3 className="section-title">Pending approvals</h3>
@@ -370,13 +376,11 @@ function SettingsPage() {
           >
             {isSavingProfile ? 'Saving...' : 'Save profile'}
           </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void refreshProfile()}
-          >
-            Refresh profile
-          </button>
+          <RefreshIconButton
+            label="Refresh profile"
+            isRefreshing={isRefreshingProfile}
+            onClick={handleRefreshProfile}
+          />
         </div>
       </form>
     </section>

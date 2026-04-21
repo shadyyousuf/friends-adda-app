@@ -325,6 +325,7 @@ textarea {
   background: rgba(157, 230, 216, 0.28);
 }
 
+.icon-button,
 .topbar-action-button {
   display: inline-flex;
   align-items: center;
@@ -343,6 +344,30 @@ textarea {
     box-shadow 180ms ease;
 }
 
+.icon-button {
+  padding: 0;
+}
+
+.icon-button:disabled,
+.topbar-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.icon-button svg,
+.topbar-action-button svg {
+  flex: none;
+}
+
+.icon-button.is-spinning svg,
+.topbar-action-button.is-spinning svg {
+  animation: loader-spin 1s linear infinite;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible,
 .topbar-action-button:hover,
 .topbar-action-button:focus-visible {
   transform: translateY(-1px);
@@ -1056,6 +1081,13 @@ textarea {
 .split-header {
   display: flex;
   align-items: start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.section-inline-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.9rem;
 }

@@ -13,7 +13,11 @@ import {
   type EventVisibility,
   type EventWithRole,
 } from '../utils/events'
-import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
+import {
+  DASHBOARD_REFRESH_COMPLETED_EVENT,
+  DASHBOARD_REFRESH_EVENT,
+  DASHBOARD_REFRESH_STARTED_EVENT,
+} from '../utils/ui-events'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -109,8 +113,14 @@ function HomePage() {
         ? 'Failed to load dashboard.'
         : null
   useEffect(() => {
-    function handleDashboardRefresh() {
-      void dashboardQuery.refetch()
+    async function handleDashboardRefresh() {
+      window.dispatchEvent(new Event(DASHBOARD_REFRESH_STARTED_EVENT))
+
+      try {
+        await dashboardQuery.refetch()
+      } finally {
+        window.dispatchEvent(new Event(DASHBOARD_REFRESH_COMPLETED_EVENT))
+      }
     }
 
     window.addEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)

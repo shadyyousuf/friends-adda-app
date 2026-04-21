@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
+import RefreshIconButton from '../components/RefreshIconButton'
 import {
   completedEventsQueryOptions,
   type EventWithRole,
@@ -25,6 +26,8 @@ function HistoryPage() {
       : historyQuery.error
         ? 'Failed to load history.'
         : null
+  const isHistoryRefreshing =
+    historyQuery.isPending || historyQuery.isRefetching
 
   if (
     authStatus === 'initializing' ||
@@ -50,16 +53,11 @@ function HistoryPage() {
             <p className="eyebrow">History</p>
             <h2 className="panel-title">Completed events</h2>
           </div>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void historyQuery.refetch()}
-            disabled={historyQuery.isPending || historyQuery.isRefetching}
-          >
-            {historyQuery.isPending || historyQuery.isRefetching
-              ? 'Refreshing...'
-              : 'Refresh'}
-          </button>
+          <RefreshIconButton
+            label="Refresh history"
+            isRefreshing={isHistoryRefreshing}
+            onClick={() => historyQuery.refetch()}
+          />
         </div>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       </section>

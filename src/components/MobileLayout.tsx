@@ -1,7 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { RotateCw } from 'lucide-react'
 import {
   createContext,
+  useEffect,
   type ReactNode,
   useContext,
   useState,
@@ -9,7 +9,12 @@ import {
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
 import InstallAppPrompt from './InstallAppPrompt'
-import { DASHBOARD_REFRESH_EVENT } from '../utils/ui-events'
+import RefreshIconButton from './RefreshIconButton'
+import {
+  DASHBOARD_REFRESH_COMPLETED_EVENT,
+  DASHBOARD_REFRESH_EVENT,
+  DASHBOARD_REFRESH_STARTED_EVENT,
+} from '../utils/ui-events'
 
 type EventTitleContextValue = {
   eventTitle: string | null
@@ -38,6 +43,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     profile,
   })
   const [eventTitle, setEventTitle] = useState<string | null>(null)
+  const [isDashboardRefreshing, setIsDashboardRefreshing] = useState(false)
 
   const isDashboardRoute = pathname === '/'
   const isAuthScreen = pathname === '/login' || pathname === '/signup'
@@ -58,6 +64,36 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     ? eventTitle ?? pageMeta.title
     : pageMeta.title
 
+  useEffect(() => {
+    function handleDashboardRefreshStarted() {
+      setIsDashboardRefreshing(true)
+    }
+
+    function handleDashboardRefreshCompleted() {
+      setIsDashboardRefreshing(false)
+    }
+
+    window.addEventListener(
+      DASHBOARD_REFRESH_STARTED_EVENT,
+      handleDashboardRefreshStarted,
+    )
+    window.addEventListener(
+      DASHBOARD_REFRESH_COMPLETED_EVENT,
+      handleDashboardRefreshCompleted,
+    )
+
+    return () => {
+      window.removeEventListener(
+        DASHBOARD_REFRESH_STARTED_EVENT,
+        handleDashboardRefreshStarted,
+      )
+      window.removeEventListener(
+        DASHBOARD_REFRESH_COMPLETED_EVENT,
+        handleDashboardRefreshCompleted,
+      )
+    }
+  }, [])
+
   return (
     <div className="app-shell">
       <div className="app-backdrop app-backdrop-primary" />
@@ -74,17 +110,15 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
 
           <div className="topbar-actions">
             {isEventRoute ? null : isDashboardRoute && user && profile?.is_approved ? (
-              <button
-                type="button"
+              <RefreshIconButton
+                label="Refresh dashboard"
                 className="topbar-action-button"
-                aria-label="Refresh dashboard"
-                title="Refresh dashboard"
+                isRefreshing={isDashboardRefreshing}
                 onClick={() => {
+                  setIsDashboardRefreshing(true)
                   window.dispatchEvent(new Event(DASHBOARD_REFRESH_EVENT))
                 }}
-              >
-                <RotateCw size={18} />
-              </button>
+              />
             ) : (
               <div className={`status-chip ${status.className}`}>{status.label}</div>
             )}
