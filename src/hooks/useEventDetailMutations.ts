@@ -26,8 +26,22 @@ export function useEventDetailMutations({
     })
   }
 
+  async function invalidateHistory() {
+    await queryClient.invalidateQueries({
+      queryKey: eventKeys.history(viewerId),
+    })
+  }
+
   async function invalidateDetailAndDashboard() {
     await Promise.all([invalidateDetail(), invalidateDashboard()])
+  }
+
+  async function invalidateDetailDashboardAndHistory() {
+    await Promise.all([
+      invalidateDetail(),
+      invalidateDashboard(),
+      invalidateHistory(),
+    ])
   }
 
   async function runMutation(
@@ -61,7 +75,9 @@ export function useEventDetailMutations({
     detailQueryKey,
     invalidateDetail,
     invalidateDashboard,
+    invalidateHistory,
     invalidateDetailAndDashboard,
+    invalidateDetailDashboardAndHistory,
     runMutation,
   }
 }

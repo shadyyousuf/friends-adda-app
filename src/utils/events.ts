@@ -104,7 +104,7 @@ async function loadDashboardData(userId: string): Promise<DashboardData> {
     throw subscriptionsError
   }
 
-  const myEvents = (subscriptions ?? [])
+  const allMyEvents = (subscriptions ?? [])
     .map((subscription) => {
       const event = Array.isArray(subscription.events)
         ? subscription.events[0]
@@ -121,7 +121,8 @@ async function loadDashboardData(userId: string): Promise<DashboardData> {
     })
     .filter((event): event is EventWithRole => event !== null)
 
-  const subscribedEventIds = new Set(myEvents.map((event) => event.id))
+  const myEvents = allMyEvents.filter((event) => event.status !== 'completed')
+  const subscribedEventIds = new Set(allMyEvents.map((event) => event.id))
 
   const { data: publicEvents, error: publicEventsError } = await supabase
     .from('events')
@@ -319,6 +320,19 @@ export async function deleteEvent(eventId: string) {
   assertOnlineForMutation('delete events.')
 
   const { error } = await supabase.from('events').delete().eq('id', eventId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function closeEvent(eventId: string) {
+  assertOnlineForMutation('close events.')
+
+  const { error } = await supabase
+    .from('events')
+    .update({ status: 'completed' })
+    .eq('id', eventId)
 
   if (error) {
     throw error

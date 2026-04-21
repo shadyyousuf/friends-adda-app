@@ -45,6 +45,7 @@ import {
 import {
   demoteEventMemberToMember,
   addMembersToEvent,
+  closeEvent,
   eventDetailQueryOptions,
   deleteEvent,
   extractRandomPickerWinnerId,
@@ -84,6 +85,7 @@ function EventDetailPage() {
     null | 'members' | 'leaderboard' | 'event-details' | 'add-members'
   >(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isEditingEvent, setIsEditingEvent] = useState(false)
   const [billAmount, setBillAmount] = useState('')
@@ -120,6 +122,7 @@ function EventDetailPage() {
     clearError,
     invalidateDetail,
     invalidateDetailAndDashboard,
+    invalidateDetailDashboardAndHistory,
     runMutation,
   } = useEventDetailMutations({
     eventId,
@@ -160,14 +163,14 @@ function EventDetailPage() {
   const currentSubscriber = detail.subscribers.find(
     (subscriber) => subscriber.user_id === user?.id,
   )
-  const canManageMembers =
-    profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
-  const canEditEvent =
-    profile?.role === 'admin' || currentSubscriber?.event_role === 'captain'
-  const canRunModules =
-    profile?.role === 'admin' ||
-    currentSubscriber?.event_role === 'captain' ||
-    currentSubscriber?.event_role === 'co-captain'
+  const eventIsClosed = event?.status === 'completed'
+  const isAdmin = profile?.role === 'admin'
+  const isCaptain = currentSubscriber?.event_role === 'captain'
+  const isCoCaptain = currentSubscriber?.event_role === 'co-captain'
+  const canManageMembers = !eventIsClosed && (isAdmin || isCaptain)
+  const canEditEvent = !eventIsClosed && (isAdmin || isCaptain)
+  const canRunModules = !eventIsClosed && (isAdmin || isCaptain || isCoCaptain)
+  const canCloseEvent = !eventIsClosed && (isAdmin || isCaptain)
   const randomPickerWinnerIds = new Set(
     detail.activities
       .map((activity) => extractRandomPickerWinnerId(activity))
@@ -216,11 +219,11 @@ function EventDetailPage() {
   }
   const randomPickerWinners = Array.from(randomPickerWinnersByLatest.values())
   const canSpinRandomPicker =
-    (currentSubscriber?.event_role === 'captain' ||
-      currentSubscriber?.event_role === 'co-captain') &&
+    !eventIsClosed &&
+    (isCaptain || isCoCaptain) &&
     randomPickerRemainingMembers.length > 0
   const canEditRandomPickerWinnerAmount = canRunModules
-  const canDeleteEvent = canEditEvent
+  const canDeleteEvent = !eventIsClosed && (isAdmin || isCaptain)
   const fundStatusItems = buildFundStatusItems(
     detail.subscribers,
     detail.funds,
@@ -251,9 +254,11 @@ function EventDetailPage() {
   )
   const menuActionItems = getEventMenuItems(
     event?.type,
+    canCloseEvent,
     canDeleteEvent,
     canEditEvent,
     canManageMembers,
+    eventIsClosed,
   )
   const monthlyDefaultAmount = getMonthlyDefaultAmount(event)
   const defaultPaymentAmount = monthlyDefaultAmount !== null ? String(monthlyDefaultAmount) : ''
@@ -313,6 +318,33 @@ function EventDetailPage() {
     }
   }, [fundPeriods, selectedPeriodIndex])
 
+  useEffect(() => {
+    if (!eventIsClosed) {
+      return
+    }
+
+    setIsCloseConfirmOpen(false)
+    setIsDeleteConfirmOpen(false)
+    setIsEditingEvent(false)
+    setPaymentDrawerUserId(null)
+    setEditingRandomPickerWinner(null)
+
+    if (activePanel === 'add-members') {
+      setActivePanel(null)
+      setAddMemberSearch('')
+      setSelectedMemberIds([])
+    }
+  }, [activePanel, eventIsClosed])
+
+  function isEventReadOnly() {
+    if (!eventIsClosed) {
+      return false
+    }
+
+    setErrorMessage('Closed events are read-only.')
+    return true
+  }
+
   async function handleAction(
     action:
       | 'make-captain'
@@ -321,6 +353,10 @@ function EventDetailPage() {
       | 'remove',
     userId: string,
   ) {
+    if (isEventReadOnly()) {
+      return
+    }
+
     const actionKey = `${action}:${userId}`
 
     await runMutation(
@@ -346,6 +382,10 @@ function EventDetailPage() {
     eventForm.preventDefault()
 
     if (!detail.event) {
+      return
+    }
+
+    if (isEventReadOnly()) {
       return
     }
 
@@ -417,6 +457,10 @@ function EventDetailPage() {
       return
     }
 
+    if (isEventReadOnly()) {
+      return
+    }
+
     const amount = Number(paymentAmount)
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -456,6 +500,10 @@ function EventDetailPage() {
       amount: number
     },
   ) {
+    if (isEventReadOnly()) {
+      return
+    }
+
     setEditingRandomPickerWinner(winner)
     setRandomPickerWinnerAmount(String(Math.round(winner.amount)))
     setErrorMessage(null)
@@ -472,6 +520,10 @@ function EventDetailPage() {
     event.preventDefault()
 
     if (!editingRandomPickerWinner) {
+      return
+    }
+
+    if (isEventReadOnly()) {
       return
     }
 
@@ -500,6 +552,10 @@ function EventDetailPage() {
   }
 
   function openPaymentDrawer(userId: string) {
+    if (isEventReadOnly()) {
+      return
+    }
+
     setPaymentDrawerUserId(userId)
     setPaymentAmount(defaultPaymentAmount)
     setErrorMessage(null)
@@ -555,6 +611,10 @@ function EventDetailPage() {
   }
 
   function openAddMembersPanel() {
+    if (isEventReadOnly()) {
+      return
+    }
+
     setActivePanel('add-members')
     setIsMenuOpen(false)
     setAddMemberSearch('')
@@ -586,6 +646,10 @@ function EventDetailPage() {
       return
     }
 
+    if (isEventReadOnly()) {
+      return
+    }
+
     await runMutation(
       'add-members',
       async () => {
@@ -601,6 +665,11 @@ function EventDetailPage() {
 
   async function handleDeleteEvent() {
     if (!detail.event) {
+      return
+    }
+
+    if (isEventReadOnly()) {
+      setIsDeleteConfirmOpen(false)
       return
     }
 
@@ -623,6 +692,48 @@ function EventDetailPage() {
     if (wasDeleted) {
       void navigate({ to: '/', search: { create: undefined } })
     }
+  }
+
+  async function handleCloseEvent() {
+    if (!detail.event) {
+      return
+    }
+
+    if (isEventReadOnly()) {
+      setIsCloseConfirmOpen(false)
+      return
+    }
+
+    if (!canCloseEvent) {
+      setErrorMessage('Only app admins or event captains can close this event.')
+      setIsCloseConfirmOpen(false)
+      return
+    }
+
+    await runMutation(
+      'close-event',
+      async () => {
+        await closeEvent(eventId)
+        setIsCloseConfirmOpen(false)
+        setIsEditingEvent(false)
+        setPaymentDrawerUserId(null)
+        setEditingRandomPickerWinner(null)
+        setAddMemberSearch('')
+        setSelectedMemberIds([])
+        await invalidateDetailDashboardAndHistory()
+      },
+      'Failed to close event.',
+    )
+  }
+
+  function openCloseConfirmation() {
+    setIsCloseConfirmOpen(true)
+    clearError()
+    setIsMenuOpen(false)
+  }
+
+  function closeCloseConfirmation() {
+    setIsCloseConfirmOpen(false)
   }
 
   function openDeleteConfirmation() {
@@ -677,6 +788,11 @@ function EventDetailPage() {
 
     if (action === 'invite-friends') {
       openAddMembersPanel()
+      return
+    }
+
+    if (action === 'close-event') {
+      openCloseConfirmation()
       return
     }
 
@@ -1052,6 +1168,50 @@ function EventDetailPage() {
         onSelect={handleFloatingMenuSelect}
       />
 
+      {isCloseConfirmOpen ? (
+        <section
+          className="drawer-overlay"
+          onClick={closeCloseConfirmation}
+        >
+          <div
+            className="glass-card create-drawer"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Close event confirmation"
+          >
+            <div className="drawer-handle" aria-hidden="true" />
+            <div className="section-header-copy">
+              <p className="eyebrow">Complete event</p>
+              <h3 className="section-title">Close this event?</h3>
+            </div>
+            <p className="event-detail-meta">
+              This will mark the event as completed, remove it from active
+              dashboards, add it to history, and make it read-only.
+            </p>
+            <div className="actions-row">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void handleCloseEvent()
+                }}
+                disabled={activeAction === 'close-event'}
+              >
+                {activeAction === 'close-event' ? 'Closing...' : 'Confirm close'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeCloseConfirmation}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {isDeleteConfirmOpen ? (
         <section
           className="drawer-overlay"
@@ -1100,6 +1260,10 @@ function EventDetailPage() {
 
   async function handleSpin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (isEventReadOnly()) {
+      return
+    }
 
     const amount = Number(billAmount)
 

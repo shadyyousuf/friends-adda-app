@@ -80,6 +80,20 @@ describe('event query helpers', () => {
             created_at: '2026-04-21T00:00:00.000Z',
           },
         },
+        {
+          event_role: 'captain',
+          events: {
+            id: 'event-closed',
+            title: 'Finished Fund',
+            description: null,
+            type: 'fund_tracker',
+            event_date: '2026-04-19',
+            status: 'completed',
+            visibility: 'private',
+            created_by: 'user-42',
+            created_at: '2026-04-19T00:00:00.000Z',
+          },
+        },
       ],
       error: null,
     })
@@ -123,6 +137,11 @@ describe('event query helpers', () => {
     expect(mocks.getUserMock).not.toHaveBeenCalled()
     expect(eventSubscribersChain.eq).toHaveBeenCalledWith('user_id', 'user-42')
     expect(result.myEvents).toHaveLength(1)
+    expect(result.myEvents).toEqual([
+      expect.objectContaining({
+        id: 'event-1',
+      }),
+    ])
     expect(result.discoverEvents).toEqual([
       expect.objectContaining({
         id: 'event-2',

@@ -29,6 +29,19 @@ export function registerPwa() {
     return
   }
 
+  if (import.meta.env.DEV) {
+    hasRegistered = true
+
+    void window.navigator.serviceWorker
+      ?.getRegistrations()
+      .then((registrations) =>
+        Promise.all(registrations.map((registration) => registration.unregister())),
+      )
+      .catch(() => {})
+
+    return
+  }
+
   hasRegistered = true
   updateServiceWorker = registerSW({
     immediate: true,

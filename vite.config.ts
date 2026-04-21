@@ -37,7 +37,7 @@ const config = defineConfig({
         'logo1024.png',
       ],
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module',
       },
       injectManifest: {

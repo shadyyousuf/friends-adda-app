@@ -1,7 +1,17 @@
-import { Info, Menu, Pencil, Trash2, Trophy, UserRoundPlus, Users } from 'lucide-react'
+import {
+  CheckCircle2,
+  Info,
+  Menu,
+  Pencil,
+  Trash2,
+  Trophy,
+  UserRoundPlus,
+  Users,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export type EventDetailMenuActionType =
+  | 'close-event'
   | 'edit-event'
   | 'event-details'
   | 'leaderboard'
@@ -13,14 +23,16 @@ export type EventDetailMenuItem = {
   type: EventDetailMenuActionType
   label: string
   icon: ReactNode
-  isDanger?: true
+  tone?: 'danger' | 'success'
 }
 
 export function getEventMenuItems(
   eventType?: string,
+  canCloseEvent?: boolean,
   canDelete?: boolean,
   canEditEvent?: boolean,
   canManageMembers?: boolean,
+  isClosed?: boolean,
 ): EventDetailMenuItem[] {
   const items: EventDetailMenuItem[] = []
 
@@ -100,12 +112,21 @@ export function getEventMenuItems(
     )
   }
 
-  if (canDelete) {
+  if (canCloseEvent && !isClosed) {
+    items.push({
+      type: 'close-event',
+      label: 'Close Event',
+      icon: <CheckCircle2 size={16} />,
+      tone: 'success',
+    })
+  }
+
+  if (canDelete && !isClosed) {
     items.push({
       type: 'delete-event',
       label: 'Delete event',
       icon: <Trash2 size={16} />,
-      isDanger: true,
+      tone: 'danger',
     })
   }
 
@@ -148,7 +169,13 @@ export default function EventDetailMenu({
             <button
               key={item.type}
               type="button"
-              className={`event-fab-menu-item${item.isDanger ? ' is-danger' : ''}`}
+              className={`event-fab-menu-item${
+                item.tone === 'danger'
+                  ? ' is-danger'
+                  : item.tone === 'success'
+                    ? ' is-success'
+                    : ''
+              }`}
               onClick={() => onSelect(item.type)}
             >
               {item.icon}
