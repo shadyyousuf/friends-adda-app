@@ -66,6 +66,7 @@ function dispatchBeforeInstallPrompt({
 describe('InstallAppPrompt', () => {
   beforeEach(() => {
     cleanup()
+    window.localStorage.clear()
     mockMatchMedia()
     mockNavigator({
       userAgent:
@@ -107,7 +108,7 @@ describe('InstallAppPrompt', () => {
     expect(await screen.findByText('Install Friends Adda')).toBeTruthy()
   })
 
-  it('hides after dismissal for the current lifecycle only', async () => {
+  it('stays hidden after dismissal until the cooldown expires', async () => {
     mockNavigator({
       userAgent:
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
@@ -123,6 +124,14 @@ describe('InstallAppPrompt', () => {
       expect(screen.queryByText('Install Friends Adda')).toBeNull()
     })
 
+    unmount()
+    render(<InstallAppPrompt />)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Install Friends Adda')).toBeNull()
+    })
+
+    window.localStorage.clear()
     unmount()
     render(<InstallAppPrompt />)
 

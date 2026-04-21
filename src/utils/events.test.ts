@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { completedEventsQueryOptions, dashboardQueryOptions } from './events'
+import {
+  completedEventsQueryOptions,
+  dashboardQueryOptions,
+  type DashboardData,
+  type EventWithRole,
+} from './events'
 
 const mocks = vi.hoisted(() => ({
   getUserMock: vi.fn(),
@@ -111,7 +116,8 @@ describe('event query helpers', () => {
     })
 
     const query = dashboardQueryOptions('user-42')
-    const result = await query.queryFn()
+    const queryFn = query.queryFn as unknown as () => Promise<DashboardData>
+    const result = await queryFn()
 
     expect(query.queryKey).toEqual(['events', 'dashboard', 'user-42'])
     expect(mocks.getUserMock).not.toHaveBeenCalled()
@@ -146,7 +152,8 @@ describe('event query helpers', () => {
     })
 
     const query = completedEventsQueryOptions('user-42')
-    const result = await query.queryFn()
+    const queryFn = query.queryFn as unknown as () => Promise<EventWithRole[]>
+    const result = await queryFn()
 
     expect(query.queryKey).toEqual(['events', 'history', 'user-42'])
     expect(mocks.getUserMock).not.toHaveBeenCalled()

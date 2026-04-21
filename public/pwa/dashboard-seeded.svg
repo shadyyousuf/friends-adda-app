@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" role="img" aria-label="Friends Adda dashboard screenshot">
+  <defs>
+    <linearGradient id="dashboardBg" x1="80" y1="0" x2="1000" y2="1920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0b1526"/>
+      <stop offset="1" stop-color="#10231d"/>
+    </linearGradient>
+    <linearGradient id="dashboardGlow" x1="240" y1="160" x2="860" y2="1660" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5fd2cf"/>
+      <stop offset="1" stop-color="#86dfae"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#dashboardBg)"/>
+  <circle cx="210" cy="220" r="180" fill="#1b4f72" opacity=".2"/>
+  <circle cx="880" cy="340" r="220" fill="#3cbf92" opacity=".14"/>
+  <rect x="72" y="88" width="936" height="1744" rx="56" fill="#08111e" opacity=".7" stroke="rgba(255,255,255,.14)"/>
+
+  <rect x="124" y="146" width="832" height="124" rx="34" fill="#152338"/>
+  <text x="168" y="190" fill="#85a5c6" font-family="Arial, sans-serif" font-size="28">Friends Adda</text>
+  <text x="168" y="234" fill="#f4fbff" font-family="Arial, sans-serif" font-size="52" font-weight="700">Welcome, Shady</text>
+  <rect x="824" y="166" width="88" height="88" rx="28" fill="url(#dashboardGlow)"/>
+  <text x="854" y="223" fill="#08111e" font-family="Arial, sans-serif" font-size="42">↻</text>
+
+  <text x="132" y="330" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">MY EVENTS</text>
+  <text x="132" y="376" fill="#f4fbff" font-family="Arial, sans-serif" font-size="42" font-weight="700">Pick up your active plans</text>
+  <rect x="852" y="334" width="88" height="48" rx="24" fill="#18364c"/>
+  <text x="888" y="367" fill="#d4f8ff" font-family="Arial, sans-serif" font-size="24" text-anchor="middle">3</text>
+
+  <rect x="132" y="420" width="816" height="216" rx="38" fill="#132134"/>
+  <rect x="164" y="454" width="116" height="40" rx="20" fill="#173d4b"/>
+  <text x="222" y="481" fill="#9ff1d7" font-family="Arial, sans-serif" font-size="21" text-anchor="middle">Fund Tracker</text>
+  <text x="164" y="540" fill="#f4fbff" font-family="Arial, sans-serif" font-size="40" font-weight="700">Monthly Adda Fund</text>
+  <text x="164" y="590" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Status: open</text>
+  <text x="640" y="590" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Date: Apr 27, 2026</text>
+
+  <rect x="132" y="668" width="816" height="216" rx="38" fill="#132134"/>
+  <rect x="164" y="702" width="132" height="40" rx="20" fill="#2a2945"/>
+  <text x="230" y="729" fill="#d8d0ff" font-family="Arial, sans-serif" font-size="21" text-anchor="middle">Random Picker</text>
+  <text x="164" y="788" fill="#f4fbff" font-family="Arial, sans-serif" font-size="40" font-weight="700">Weekend Food Vote</text>
+  <text x="164" y="838" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Status: open</text>
+  <text x="640" y="838" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Date: May 2, 2026</text>
+
+  <text x="132" y="980" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">DISCOVER</text>
+  <text x="132" y="1026" fill="#f4fbff" font-family="Arial, sans-serif" font-size="42" font-weight="700">Join an open public event</text>
+  <rect x="852" y="984" width="88" height="48" rx="24" fill="#18364c"/>
+  <text x="888" y="1017" fill="#d4f8ff" font-family="Arial, sans-serif" font-size="24" text-anchor="middle">2</text>
+
+  <rect x="132" y="1070" width="816" height="230" rx="38" fill="#132134"/>
+  <text x="164" y="1148" fill="#f4fbff" font-family="Arial, sans-serif" font-size="40" font-weight="700">Friday Cricket Meetup</text>
+  <text x="164" y="1198" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Status: open</text>
+  <text x="640" y="1198" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Date: Apr 30, 2026</text>
+  <rect x="164" y="1236" width="184" height="54" rx="27" fill="url(#dashboardGlow)"/>
+  <text x="256" y="1271" fill="#08111e" font-family="Arial, sans-serif" font-size="24" font-weight="700" text-anchor="middle">Join event</text>
+
+  <rect x="132" y="1512" width="816" height="168" rx="38" fill="#132134"/>
+  <text x="164" y="1582" fill="#f4fbff" font-family="Arial, sans-serif" font-size="34" font-weight="700">Offline-friendly reads</text>
+  <text x="164" y="1632" fill="#95adc4" font-family="Arial, sans-serif" font-size="24">Visited dashboard, members, history, and event pages stay readable offline.</text>
+
+  <circle cx="540" cy="1768" r="58" fill="url(#dashboardGlow)"/>
+  <text x="540" y="1788" fill="#08111e" font-family="Arial, sans-serif" font-size="56" font-weight="700" text-anchor="middle">+</text>
+</svg>

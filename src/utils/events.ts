@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { supabase, type Database } from './supabase'
+import { assertOnlineForMutation } from './network'
 
 type EventRow = Database['public']['Tables']['events']['Row']
 type SubscriberRow = Database['public']['Tables']['event_subscribers']['Row']
@@ -52,7 +53,8 @@ export type EventDetailData = {
 export const eventKeys = {
   dashboard: (userId: string) => ['events', 'dashboard', userId] as const,
   history: (userId: string) => ['events', 'history', userId] as const,
-  detail: (eventId: string) => ['events', 'detail', eventId] as const,
+  detail: (userId: string, eventId: string) =>
+    ['events', 'detail', userId, eventId] as const,
 }
 
 export function dashboardQueryOptions(userId: string) {
@@ -62,9 +64,9 @@ export function dashboardQueryOptions(userId: string) {
   })
 }
 
-export function eventDetailQueryOptions(eventId: string) {
+export function eventDetailQueryOptions(userId: string, eventId: string) {
   return queryOptions({
-    queryKey: eventKeys.detail(eventId),
+    queryKey: eventKeys.detail(userId, eventId),
     queryFn: () => loadEventDetail(eventId),
   })
 }
@@ -151,6 +153,8 @@ export async function createEventWithCaptain({
   targetAmount,
   monthlyDefaultAmount,
 }: CreateEventInput) {
+  assertOnlineForMutation('create events.')
+
   const { data, error } = await supabase.rpc('create_event_with_captain', {
     p_title: title,
     p_description: description,
@@ -173,6 +177,8 @@ export async function addMembersToEvent(eventId: string, userIds: string[]) {
     return
   }
 
+  assertOnlineForMutation('add members.')
+
   const insertPayload = userIds.map((userId) => ({
     event_id: eventId,
     user_id: userId,
@@ -192,6 +198,8 @@ export async function addMembersToEvent(eventId: string, userIds: string[]) {
 }
 
 export async function joinPublicEvent(eventId: string) {
+  assertOnlineForMutation('join events.')
+
   const { data, error } = await supabase.rpc('join_public_event', {
     p_event_id: eventId,
   })
@@ -290,6 +298,8 @@ export async function promoteEventMemberToCoCaptain(
   eventId: string,
   userId: string,
 ) {
+  assertOnlineForMutation('update event roles.')
+
   const { data, error } = await supabase.rpc(
     'promote_event_member_to_cocaptain',
     {
@@ -306,6 +316,8 @@ export async function promoteEventMemberToCoCaptain(
 }
 
 export async function deleteEvent(eventId: string) {
+  assertOnlineForMutation('delete events.')
+
   const { error } = await supabase.from('events').delete().eq('id', eventId)
 
   if (error) {
@@ -314,6 +326,8 @@ export async function deleteEvent(eventId: string) {
 }
 
 export async function transferEventCaptain(eventId: string, userId: string) {
+  assertOnlineForMutation('transfer event ownership.')
+
   const { data, error } = await supabase.rpc('transfer_event_captain', {
     p_event_id: eventId,
     p_user_id: userId,
@@ -327,6 +341,8 @@ export async function transferEventCaptain(eventId: string, userId: string) {
 }
 
 export async function updateEvent(input: UpdateEventInput) {
+  assertOnlineForMutation('save event changes.')
+
   const {
     eventId,
     title,
@@ -373,6 +389,8 @@ export async function updateEvent(input: UpdateEventInput) {
 }
 
 export async function demoteEventMemberToMember(eventId: string, userId: string) {
+  assertOnlineForMutation('update event roles.')
+
   const { data, error } = await supabase.rpc('demote_event_member_to_member', {
     p_event_id: eventId,
     p_user_id: userId,
@@ -386,6 +404,8 @@ export async function demoteEventMemberToMember(eventId: string, userId: string)
 }
 
 export async function removeEventMember(eventId: string, userId: string) {
+  assertOnlineForMutation('remove event members.')
+
   const { data, error } = await supabase.rpc('remove_event_member', {
     p_event_id: eventId,
     p_user_id: userId,
@@ -411,6 +431,8 @@ export async function upsertEventFundPayment({
   month: number
   year: number
 }) {
+  assertOnlineForMutation('record payments.')
+
   const { data, error } = await supabase.rpc('upsert_event_fund_payment', {
     p_event_id: eventId,
     p_user_id: userId,
@@ -427,6 +449,8 @@ export async function upsertEventFundPayment({
 }
 
 export async function spinRandomPicker(eventId: string, amount: number) {
+  assertOnlineForMutation('spin the random picker.')
+
   const { data, error } = await supabase.rpc('spin_random_picker', {
     p_event_id: eventId,
     p_amount: amount,
@@ -440,37 +464,21 @@ export async function spinRandomPicker(eventId: string, amount: number) {
 }
 
 export async function updateRandomPickerWinnerAmount(activityId: string, amount: number) {
-  const { data: activity, error: fetchError } = await supabase
-    .from('event_activities')
-    .select('payload')
-    .eq('id', activityId)
-    .single()
+  assertOnlineForMutation('update winner amounts.')
 
-  if (fetchError) {
-    throw fetchError
-  }
-
-  const payload =
-    activity?.payload && typeof activity.payload === 'object'
-      ? { ...activity.payload }
-      : {}
-
-  const nextPayload = {
-    ...payload,
-    amount,
-  }
-
-  const { error } = await supabase
-    .from('event_activities')
-    .update({
-      payload: nextPayload,
-      created_at: new Date().toISOString(),
-    })
-    .eq('id', activityId)
+  const { data, error } = await supabase.rpc(
+    'update_random_picker_winner_amount',
+    {
+      p_activity_id: activityId,
+      p_amount: amount,
+    },
+  )
 
   if (error) {
     throw error
   }
+
+  return data
 }
 
 export function extractRandomPickerWinnerId(activity: ActivityRow): string | null {

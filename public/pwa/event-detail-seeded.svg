@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" role="img" aria-label="Friends Adda event detail screenshot">
+  <defs>
+    <linearGradient id="eventBg" x1="140" y1="0" x2="940" y2="1920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#09111f"/>
+      <stop offset="1" stop-color="#112821"/>
+    </linearGradient>
+    <linearGradient id="eventAccent" x1="200" y1="220" x2="840" y2="1500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#63d4cf"/>
+      <stop offset="1" stop-color="#85dfb1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#eventBg)"/>
+  <circle cx="240" cy="220" r="180" fill="#2f66aa" opacity=".18"/>
+  <circle cx="880" cy="280" r="180" fill="#4ed3a5" opacity=".14"/>
+  <rect x="72" y="88" width="936" height="1744" rx="56" fill="#08111e" opacity=".72" stroke="rgba(255,255,255,.14)"/>
+
+  <rect x="124" y="146" width="832" height="124" rx="34" fill="#152338"/>
+  <text x="168" y="190" fill="#85a5c6" font-family="Arial, sans-serif" font-size="28">Friends Adda</text>
+  <text x="168" y="234" fill="#f4fbff" font-family="Arial, sans-serif" font-size="48" font-weight="700">Monthly Adda Fund</text>
+  <text x="760" y="218" fill="#9ff1d7" font-family="Arial, sans-serif" font-size="24">Apr 2026</text>
+
+  <rect x="132" y="330" width="816" height="284" rx="38" fill="#132134"/>
+  <text x="164" y="402" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">FUND TRACKER</text>
+  <text x="164" y="456" fill="#f4fbff" font-family="Arial, sans-serif" font-size="68" font-weight="700">BDT 18,400</text>
+  <text x="164" y="506" fill="#95adc4" font-family="Arial, sans-serif" font-size="26">Collected this cycle</text>
+  <rect x="164" y="548" width="752" height="18" rx="9" fill="#18364c"/>
+  <rect x="164" y="548" width="492" height="18" rx="9" fill="url(#eventAccent)"/>
+  <text x="164" y="596" fill="#95adc4" font-family="Arial, sans-serif" font-size="24">12 of 18 members paid</text>
+
+  <rect x="132" y="652" width="816" height="212" rx="38" fill="#132134"/>
+  <text x="164" y="724" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">MEMBERS</text>
+  <text x="164" y="774" fill="#f4fbff" font-family="Arial, sans-serif" font-size="38" font-weight="700">Captain, co-captains, and contributors</text>
+  <circle cx="194" cy="820" r="24" fill="url(#eventAccent)"/>
+  <circle cx="270" cy="820" r="24" fill="#1f5e84"/>
+  <circle cx="346" cy="820" r="24" fill="#32506e"/>
+  <text x="400" y="828" fill="#95adc4" font-family="Arial, sans-serif" font-size="24">18 subscribed members</text>
+
+  <rect x="132" y="902" width="816" height="466" rx="38" fill="#132134"/>
+  <text x="164" y="974" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">LEADERBOARD</text>
+  <g transform="translate(164 1022)">
+    <rect width="752" height="84" rx="26" fill="#18364c"/>
+    <text x="32" y="52" fill="#f4fbff" font-family="Arial, sans-serif" font-size="30" font-weight="700">1. Shady</text>
+    <text x="620" y="52" fill="#9ff1d7" font-family="Arial, sans-serif" font-size="28" text-anchor="end">BDT 4,000</text>
+  </g>
+  <g transform="translate(164 1124)">
+    <rect width="752" height="84" rx="26" fill="#18364c"/>
+    <text x="32" y="52" fill="#f4fbff" font-family="Arial, sans-serif" font-size="30" font-weight="700">2. Ashiq</text>
+    <text x="620" y="52" fill="#d4f8ff" font-family="Arial, sans-serif" font-size="28" text-anchor="end">BDT 3,000</text>
+  </g>
+  <g transform="translate(164 1226)">
+    <rect width="752" height="84" rx="26" fill="#18364c"/>
+    <text x="32" y="52" fill="#f4fbff" font-family="Arial, sans-serif" font-size="30" font-weight="700">3. Habib</text>
+    <text x="620" y="52" fill="#d4f8ff" font-family="Arial, sans-serif" font-size="28" text-anchor="end">BDT 2,500</text>
+  </g>
+
+  <rect x="132" y="1408" width="816" height="188" rx="38" fill="#132134"/>
+  <text x="164" y="1480" fill="#85a5c6" font-family="Arial, sans-serif" font-size="24">DETAILS</text>
+  <text x="164" y="1530" fill="#f4fbff" font-family="Arial, sans-serif" font-size="38" font-weight="700">Target, schedule, and privacy in one place</text>
+  <text x="164" y="1578" fill="#95adc4" font-family="Arial, sans-serif" font-size="24">Open the floating menu to edit details, manage members, or check fund progress.</text>
+
+  <circle cx="884" cy="1712" r="58" fill="url(#eventAccent)"/>
+  <text x="884" y="1734" fill="#08111e" font-family="Arial, sans-serif" font-size="54" font-weight="700" text-anchor="middle">≡</text>
+</svg>

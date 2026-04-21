@@ -1,8 +1,10 @@
-import { Link, createFileRoute, useRouterState } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
+import { useDashboardRefreshRegistration } from '../hooks/useDashboardRefresh'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import {
   createEventWithCaptain,
   dashboardQueryOptions,
@@ -13,13 +15,11 @@ import {
   type EventVisibility,
   type EventWithRole,
 } from '../utils/events'
-import {
-  DASHBOARD_REFRESH_COMPLETED_EVENT,
-  DASHBOARD_REFRESH_EVENT,
-  DASHBOARD_REFRESH_STARTED_EVENT,
-} from '../utils/ui-events'
 
 export const Route = createFileRoute('/')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    create: search.create === '1' ? '1' : undefined,
+  }),
   component: HomePage,
 })
 
@@ -77,10 +77,10 @@ const GUEST_JOURNEY = [
 
 function HomePage() {
   const navigate = Route.useNavigate()
+  const search = Route.useSearch()
   const { user, profile, authStatus, isProfileLoading } = useAuth()
+  const { isOnline } = useNetworkStatus()
   const queryClient = useQueryClient()
-  const locationSearch = useRouterState({ select: (state) => state.location.search })
-  const locationPathname = useRouterState({ select: (state) => state.location.pathname })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -112,28 +112,16 @@ function HomePage() {
       : dashboardQuery.error
         ? 'Failed to load dashboard.'
         : null
-  useEffect(() => {
-    async function handleDashboardRefresh() {
-      window.dispatchEvent(new Event(DASHBOARD_REFRESH_STARTED_EVENT))
 
-      try {
-        await dashboardQuery.refetch()
-      } finally {
-        window.dispatchEvent(new Event(DASHBOARD_REFRESH_COMPLETED_EVENT))
-      }
-    }
-
-    window.addEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)
-
-    return () => {
-      window.removeEventListener(DASHBOARD_REFRESH_EVENT, handleDashboardRefresh)
-    }
-  }, [dashboardQuery])
+  useDashboardRefreshRegistration(
+    async () => {
+      await dashboardQuery.refetch()
+    },
+    canLoadDashboard,
+  )
 
   useEffect(() => {
-    const search = new URLSearchParams(locationSearch)
-
-    if (search.get('create') !== '1') {
+    if (search.create !== '1') {
       return
     }
 
@@ -151,11 +139,15 @@ function HomePage() {
     setCreateError(null)
     setIsCreateOpen(true)
 
-    search.delete('create')
-    const nextUrl = `${locationPathname}${search.toString() ? `?${search.toString()}` : ''}`
-    window.history.replaceState({}, '', nextUrl)
-    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
-  }, [locationSearch, isCreateOpen, locationPathname])
+    void navigate({
+      to: '/',
+      search: (current) => ({
+        ...current,
+        create: undefined,
+      }),
+      replace: true,
+    })
+  }, [isCreateOpen, navigate, search.create])
 
   function openCreateDrawer() {
     setTitle('')
@@ -283,10 +275,16 @@ function HomePage() {
         <div className="split-header">
           <div className="section-header-copy">
             <p className="eyebrow">My events</p>
-            <h3 className="section-title">Subscribed and active</h3>
+            <h3 className="section-title">Pick up your active plans</h3>
           </div>
           <span className="status-chip">{dashboardData.myEvents.length}</span>
         </div>
+        {!isOnline ? (
+          <p className="field-label">
+            You are offline. Cached reads stay available, but creating or joining
+            events is disabled until you reconnect.
+          </p>
+        ) : null}
 
         {dashboardData.myEvents.length === 0 ? (
           <div className="empty-state">
@@ -296,8 +294,9 @@ function HomePage() {
                 type="button"
                 className="primary-button"
                 onClick={openCreateDrawer}
+                disabled={!isOnline}
               >
-                Create your first event
+                {isOnline ? 'Create your first event' : 'Reconnect to create'}
               </button>
             </div>
           </div>
@@ -314,7 +313,7 @@ function HomePage() {
         <div className="split-header">
           <div className="section-header-copy">
             <p className="eyebrow">Discover</p>
-            <h3 className="section-title">Public events you can join</h3>
+            <h3 className="section-title">Join an open public event</h3>
           </div>
           <span className="status-chip">{dashboardData.discoverEvents.length}</span>
         </div>
@@ -330,6 +329,7 @@ function HomePage() {
                 key={event.id}
                 event={event}
                 isJoining={activeJoinEventId === event.id}
+                isOnline={isOnline}
                 onJoin={() => void handleJoinEvent(event.id)}
               />
             ))}
@@ -342,11 +342,21 @@ function HomePage() {
           <div
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-event-title"
           >
             <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
               <div className="section-header-copy">
                 <p className="eyebrow">Create event</p>
+                <h3 className="section-title" id="create-event-title">
+                  Start a new group plan
+                </h3>
+                <p className="field-label">
+                  Choose the event mode first, then fill in the schedule and
+                  visibility.
+                </p>
               </div>
               <button
                 type="button"
@@ -453,14 +463,24 @@ function HomePage() {
               ) : null}
 
               {createError ? <p className="form-error">{createError}</p> : null}
+              {!isOnline ? (
+                <p className="field-label">
+                  Reconnect to create new events. Offline mode keeps existing
+                  reads available only.
+                </p>
+              ) : null}
 
               <div className="actions-row create-drawer-actions">
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={isCreatingEvent}
+                  disabled={isCreatingEvent || !isOnline}
                 >
-                  {isCreatingEvent ? 'Creating...' : 'Create event'}
+                  {!isOnline
+                    ? 'Reconnect to create'
+                    : isCreatingEvent
+                      ? 'Creating...'
+                      : 'Create event'}
                 </button>
                 <button
                   type="button"
@@ -623,10 +643,12 @@ function MyEventCard({ event }: { event: EventWithRole }) {
 function DiscoverEventCard({
   event,
   isJoining,
+  isOnline,
   onJoin,
 }: {
   event: DashboardData['discoverEvents'][number]
   isJoining: boolean
+  isOnline: boolean
   onJoin: () => void
 }) {
   return (
@@ -657,9 +679,9 @@ function DiscoverEventCard({
           type="button"
           className="primary-button"
           onClick={onJoin}
-          disabled={isJoining}
+          disabled={isJoining || !isOnline}
         >
-          {isJoining ? 'Joining...' : 'Join'}
+          {!isOnline ? 'Reconnect to join' : isJoining ? 'Joining...' : 'Join event'}
         </button>
       </div>
     </article>

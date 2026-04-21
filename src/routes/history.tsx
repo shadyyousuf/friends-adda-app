@@ -51,7 +51,7 @@ function HistoryPage() {
         <div className="split-header">
           <div className="section-header-copy">
             <p className="eyebrow">History</p>
-            <h2 className="panel-title">Completed events</h2>
+            <h2 className="panel-title">Review completed plans</h2>
           </div>
           <RefreshIconButton
             label="Refresh history"

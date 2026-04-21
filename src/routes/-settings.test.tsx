@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route } from './settings'
 
@@ -45,9 +46,9 @@ vi.mock('../utils/profile', () => ({
   approveUser: mocks.approveUserMock,
   pendingProfilesQueryOptions: mocks.pendingProfilesQueryOptionsMock,
   profileKeys: {
-    pending: ['profiles', 'pending'],
-    approvedMembers: ['profiles', 'approved-members'],
-    approved: ['profiles', 'approved'],
+    pending: (viewerId: string) => ['profiles', 'pending', viewerId],
+    approvedMembers: (viewerId: string) => ['profiles', 'approved-members', viewerId],
+    approved: (viewerId: string) => ['profiles', 'approved', viewerId],
   },
   promoteUserToAdmin: mocks.promoteUserToAdminMock,
   removeUserFromApp: mocks.removeUserFromAppMock,
@@ -62,7 +63,7 @@ function renderSettings() {
       },
     },
   })
-  const SettingsComponent = Route.options.component as () => JSX.Element
+  const SettingsComponent = Route.options.component as () => ReactElement
 
   return render(
     <QueryClientProvider client={queryClient}>

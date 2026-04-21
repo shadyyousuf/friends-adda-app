@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { supabase, type Database } from '../utils/supabase'
+import { clearPersistedQueryCache } from '../utils/query-client'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type AuthStatus = 'initializing' | 'signed-out' | 'signed-in'
@@ -59,6 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       predicate: (query) =>
         AUTH_DEPENDENT_QUERY_ROOTS.has(String(query.queryKey[0] ?? '')),
     })
+  }
+
+  function clearAuthDependentData() {
+    clearAuthDependentQueries()
+    clearPersistedQueryCache()
   }
 
   function applySignedOutState() {
@@ -114,15 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileState(null)
       }
     } finally {
-      if (
+      const canFinalize =
         !isMountedRef.current ||
         profileRequestIdRef.current !== requestId ||
         currentUserIdRef.current !== userId
-      ) {
-        return
-      }
 
-      setIsProfileLoading(false)
+      if (!canFinalize) {
+        setIsProfileLoading(false)
+      }
     }
   }
 
@@ -157,11 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!verifiedUser) {
         applySignedOutState()
-        clearAuthDependentQueries()
+        clearAuthDependentData()
         return
       }
 
       if (verifiedUser.id !== sessionUser.id) {
+        clearAuthDependentData()
         const isSameUser = currentUserIdRef.current === verifiedUser.id
         applySignedInState(verifiedUser, {
           markProfileLoading: !isSameUser || !profileRef.current,
@@ -179,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       applySignedOutState()
-      clearAuthDependentQueries()
+      clearAuthDependentData()
     }
   }
 
@@ -202,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function handleAuthStateChange(event: AuthChangeEvent, nextUser: User | null) {
       if (event === 'SIGNED_OUT' || !nextUser) {
         applySignedOutState()
-        clearAuthDependentQueries()
+        clearAuthDependentData()
         return
       }
 
@@ -212,6 +218,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         event === 'USER_UPDATED'
       ) {
         const isSameUser = currentUserIdRef.current === nextUser.id
+        if (!isSameUser) {
+          clearAuthDependentData()
+        }
         applySignedInState(nextUser, {
           markProfileLoading: !isSameUser || !profileRef.current,
           preserveExistingProfile: isSameUser,

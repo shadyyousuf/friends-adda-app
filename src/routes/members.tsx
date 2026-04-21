@@ -8,11 +8,8 @@ import {
   type MemberDirectoryMenuAction,
 } from '../components/MemberDirectoryCard'
 import { useAuth } from '../components/AuthProvider'
-import {
-  approvedProfilesQueryOptions,
-  promoteUserToAdmin,
-  removeUserFromApp,
-} from '../utils/profile'
+import { useMemberAdminActions } from '../hooks/useMemberAdminActions'
+import { approvedProfilesQueryOptions } from '../utils/profile'
 
 export const Route = createFileRoute('/members')({
   component: MembersPage,
@@ -20,12 +17,17 @@ export const Route = createFileRoute('/members')({
 
 function MembersPage() {
   const { user, profile, authStatus, isProfileLoading } = useAuth()
+  const viewerId = user?.id ?? ''
   const [query, setQuery] = useState('')
-  const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
-  const [memberActionError, setMemberActionError] = useState<string | null>(null)
+  const {
+    activeAction: activeMemberAction,
+    error: memberActionError,
+    promoteMember,
+    removeMember,
+  } = useMemberAdminActions(viewerId)
   const deferredQuery = useDeferredValue(query)
   const membersQuery = useQuery({
-    ...approvedProfilesQueryOptions(),
+    ...approvedProfilesQueryOptions(viewerId),
     enabled: Boolean(user && profile?.is_approved),
   })
   const members = membersQuery.data ?? []
@@ -58,39 +60,12 @@ function MembersPage() {
 
   const canManageMembers = profile?.role === 'admin'
 
-  async function runMemberAction(
-    actionKey: string,
-    action: () => Promise<unknown>,
-    failureMessage: string,
-  ) {
-    setMemberActionError(null)
-    setActiveMemberAction(actionKey)
-    try {
-      await action()
-      await membersQuery.refetch()
-    } catch (error) {
-      setMemberActionError(
-        error instanceof Error ? error.message : failureMessage,
-      )
-    } finally {
-      setActiveMemberAction(null)
-    }
-  }
-
   async function handlePromoteToAdmin(userId: string) {
-    await runMemberAction(
-      `promote:${userId}`,
-      () => promoteUserToAdmin(userId),
-      'Failed to promote user to admin.',
-    )
+    await promoteMember(userId)
   }
 
   async function handleRemoveFromApp(userId: string) {
-    await runMemberAction(
-      `remove:${userId}`,
-      () => removeUserFromApp(userId),
-      'Failed to remove user from app.',
-    )
+    await removeMember(userId)
   }
 
   if (
@@ -115,7 +90,7 @@ function MembersPage() {
         <div className="split-header">
           <div className="section-header-copy">
             <p className="eyebrow">Members</p>
-            <h2 className="panel-title">Approved directory</h2>
+            <h2 className="panel-title">Find approved members fast</h2>
           </div>
           <RefreshIconButton
             label="Refresh members"
@@ -130,7 +105,7 @@ function MembersPage() {
             className="field-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search"
+            placeholder="Search by name, email, blood group, or role"
           />
         </label>
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}

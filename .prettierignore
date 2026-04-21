@@ -1,0 +1,5 @@
+.output
+node_modules
+test-results
+pnpm-lock.yaml
+src/routeTree.gen.ts

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#08111e" />
+    <title>Friends Adda | Offline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg-page-start: #08111e;
+        --bg-page-end: #07111f;
+        --bg-glow-primary: rgba(47, 180, 164, 0.22);
+        --bg-glow-secondary: rgba(127, 217, 255, 0.18);
+        --text-primary: #eff7ff;
+        --text-secondary: rgba(223, 236, 248, 0.78);
+        --surface: rgba(24, 36, 57, 0.84);
+        --line: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        font-family: Manrope, 'Segoe UI', sans-serif;
+        color: var(--text-primary);
+        background:
+          radial-gradient(circle at top, var(--bg-glow-primary), transparent 34%),
+          radial-gradient(circle at bottom right, var(--bg-glow-secondary), transparent 30%),
+          linear-gradient(180deg, var(--bg-page-start) 0%, #0b1524 50%, var(--bg-page-end) 100%);
+      }
+
+      main {
+        width: min(100%, 28rem);
+        border: 1px solid var(--line);
+        border-radius: 1.5rem;
+        padding: 1.5rem;
+        background: linear-gradient(180deg, var(--surface), rgba(11, 21, 36, 0.92));
+        box-shadow: 0 22px 44px rgba(0, 0, 0, 0.3);
+      }
+
+      h1 {
+        margin: 0.2rem 0 0.6rem;
+        font-size: 1.6rem;
+        line-height: 1.05;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+
+      .eyebrow {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+      }
+
+      button,
+      a {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.9rem 1.1rem;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      button {
+        background: linear-gradient(135deg, #57d1be, #7fd9ff);
+        color: #041119;
+      }
+
+      a {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Offline</p>
+      <h1>Friends Adda is temporarily offline.</h1>
+      <p>
+        Last synced pages can still open if they were cached earlier. Reconnect to refresh live
+        event, member, and fund updates.
+      </p>
+      <div class="actions">
+        <button type="button" onclick="window.location.reload()">Try again</button>
+        <a href="/">Go home</a>
+      </div>
+    </main>
+  </body>
+</html>

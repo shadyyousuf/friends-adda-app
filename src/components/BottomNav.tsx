@@ -16,11 +16,13 @@ export default function BottomNav() {
     <nav className="bottom-nav" aria-label="Primary">
       {leftItems.map((item) => {
         const Icon = item.icon
+        const search = item.to === '/' ? { create: undefined } : undefined
 
         return (
           <Link
             key={item.to}
             to={item.to}
+            search={search}
             className="bottom-nav-link"
             aria-label={item.label}
             activeProps={{ className: 'bottom-nav-link is-active' }}
@@ -42,11 +44,13 @@ export default function BottomNav() {
 
       {rightItems.map((item) => {
         const Icon = item.icon
+        const search = item.to === '/' ? { create: undefined } : undefined
 
         return (
           <Link
             key={item.to}
             to={item.to}
+            search={search}
             className="bottom-nav-link"
             aria-label={item.label}
             activeProps={{ className: 'bottom-nav-link is-active' }}

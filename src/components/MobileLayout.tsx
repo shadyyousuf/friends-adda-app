@@ -9,12 +9,15 @@ import {
 import { useAuth } from './AuthProvider'
 import BottomNav from './BottomNav'
 import InstallAppPrompt from './InstallAppPrompt'
+import OfflineStatusBanner from './OfflineStatusBanner'
+import PwaUpdateBanner from './PwaUpdateBanner'
 import RefreshIconButton from './RefreshIconButton'
 import {
-  DASHBOARD_REFRESH_COMPLETED_EVENT,
-  DASHBOARD_REFRESH_EVENT,
-  DASHBOARD_REFRESH_STARTED_EVENT,
-} from '../utils/ui-events'
+  DashboardRefreshProvider,
+  useDashboardRefresh,
+} from '../hooks/useDashboardRefresh'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
+import { usePwaUpdate } from '../hooks/usePwaUpdate'
 
 type EventTitleContextValue = {
   eventTitle: string | null
@@ -31,6 +34,14 @@ export function useEventPageTitle() {
 }
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
+  return (
+    <DashboardRefreshProvider>
+      <MobileLayoutShell>{children}</MobileLayoutShell>
+    </DashboardRefreshProvider>
+  )
+}
+
+function MobileLayoutShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -43,7 +54,10 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     profile,
   })
   const [eventTitle, setEventTitle] = useState<string | null>(null)
-  const [isDashboardRefreshing, setIsDashboardRefreshing] = useState(false)
+  const { isUpdateReady, isUpdating, applyUpdate } = usePwaUpdate()
+  const { isOnline } = useNetworkStatus()
+  const { isRefreshing: isDashboardRefreshing, requestRefresh } =
+    useDashboardRefresh()
 
   const isDashboardRoute = pathname === '/'
   const isAuthScreen = pathname === '/login' || pathname === '/signup'
@@ -65,32 +79,10 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     : pageMeta.title
 
   useEffect(() => {
-    function handleDashboardRefreshStarted() {
-      setIsDashboardRefreshing(true)
-    }
-
-    function handleDashboardRefreshCompleted() {
-      setIsDashboardRefreshing(false)
-    }
-
-    window.addEventListener(
-      DASHBOARD_REFRESH_STARTED_EVENT,
-      handleDashboardRefreshStarted,
-    )
-    window.addEventListener(
-      DASHBOARD_REFRESH_COMPLETED_EVENT,
-      handleDashboardRefreshCompleted,
-    )
+    document.body.dataset.appReady = 'true'
 
     return () => {
-      window.removeEventListener(
-        DASHBOARD_REFRESH_STARTED_EVENT,
-        handleDashboardRefreshStarted,
-      )
-      window.removeEventListener(
-        DASHBOARD_REFRESH_COMPLETED_EVENT,
-        handleDashboardRefreshCompleted,
-      )
+      delete document.body.dataset.appReady
     }
   }, [])
 
@@ -115,8 +107,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
                 className="topbar-action-button"
                 isRefreshing={isDashboardRefreshing}
                 onClick={() => {
-                  setIsDashboardRefreshing(true)
-                  window.dispatchEvent(new Event(DASHBOARD_REFRESH_EVENT))
+                  void requestRefresh()
                 }}
               />
             ) : (
@@ -138,7 +129,13 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         )}
 
         {showBottomNav ? <BottomNav /> : null}
-        <InstallAppPrompt />
+        <div className="status-banner-stack" aria-live="polite">
+          {isUpdateReady ? (
+            <PwaUpdateBanner isUpdating={isUpdating} onUpdate={applyUpdate} />
+          ) : null}
+          {!isOnline ? <OfflineStatusBanner /> : null}
+          <InstallAppPrompt isSuppressed={isUpdateReady} />
+        </div>
       </div>
     </div>
   )

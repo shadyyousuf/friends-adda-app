@@ -376,12 +376,17 @@ textarea {
   box-shadow: 0 10px 24px rgba(10, 24, 39, 0.24);
 }
 
-.install-prompt-shell {
+.status-banner-stack {
   position: fixed;
   left: 50%;
   z-index: 35;
   transform: translateX(-50%);
   width: min(calc(100vw - 2rem), 28rem);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.status-banner-shell {
   padding: 1rem;
   border-radius: 1.45rem;
   box-shadow:
@@ -389,12 +394,49 @@ textarea {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.mobile-frame-no-nav .install-prompt-shell {
+.mobile-frame-no-nav .status-banner-stack {
   bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }
 
-.mobile-frame-with-nav .install-prompt-shell {
+.mobile-frame-with-nav .status-banner-stack {
   bottom: calc(env(safe-area-inset-bottom) + 5.9rem);
+}
+
+.status-banner-copy {
+  min-width: 0;
+}
+
+.status-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.95rem;
+}
+
+.status-banner-button {
+  min-height: 2.85rem;
+  flex: 1 1 auto;
+}
+
+.pwa-update-shell {
+  border-color: rgba(127, 217, 255, 0.18);
+}
+
+.offline-status-shell {
+  border-color: rgba(246, 214, 143, 0.2);
+}
+
+.offline-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(246, 214, 143, 0.16);
+  background: rgba(246, 214, 143, 0.1);
+  color: var(--text-primary);
+  box-shadow: 0 12px 28px rgba(9, 23, 39, 0.18);
 }
 
 .install-prompt-content {

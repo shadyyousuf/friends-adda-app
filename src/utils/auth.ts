@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { assertOnlineForMutation } from './network'
 
 type SignInInput = {
   email: string
@@ -12,6 +13,8 @@ type SignUpInput = {
 }
 
 export async function signIn({ email, password }: SignInInput) {
+  assertOnlineForMutation('sign in.')
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -25,6 +28,8 @@ export async function signIn({ email, password }: SignInInput) {
 }
 
 export async function signUp({ fullName, email, password }: SignUpInput) {
+  assertOnlineForMutation('create your account.')
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,

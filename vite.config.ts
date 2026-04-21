@@ -9,15 +9,21 @@ import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.1.0'),
+  },
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       outDir: '.output/public',
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt',
+      injectRegister: false,
       manifest: false,
       includeAssets: [
         'manifest.json',
@@ -29,41 +35,10 @@ const config = defineConfig({
       ],
       devOptions: {
         enabled: true,
+        type: 'module',
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-        cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request, url }) =>
-              request.mode === 'navigate' && url.origin === self.location.origin,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'app-pages',
-              networkTimeoutSeconds: 3,
-            },
-          },
-          {
-            urlPattern: ({ request, url }) =>
-              url.origin === self.location.origin &&
-              (request.destination === 'script' ||
-                request.destination === 'style' ||
-                request.destination === 'worker'),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'app-static',
-            },
-          },
-          {
-            urlPattern: ({ request, url }) =>
-              url.origin === self.location.origin &&
-              request.destination === 'image',
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'app-images',
-            },
-          },
-        ],
       },
     }),
     tanstackStart(),

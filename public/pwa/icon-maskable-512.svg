@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Friends Adda maskable icon">
+  <defs>
+    <linearGradient id="bg512" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f2f4a"/>
+      <stop offset="1" stop-color="#10201c"/>
+    </linearGradient>
+    <linearGradient id="badge512" x1="112" y1="112" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#63d4cf"/>
+      <stop offset="1" stop-color="#82e1b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="148" fill="url(#bg512)"/>
+  <circle cx="256" cy="256" r="154" fill="url(#badge512)" opacity=".14"/>
+  <rect x="118" y="114" width="276" height="286" rx="76" fill="#f4fbff" opacity=".12"/>
+  <path d="M176 218c0-41.974 34.026-76 76-76h12c41.974 0 76 34.026 76 76v10H176v-10Z" fill="url(#badge512)"/>
+  <path d="M168 254h176c24.301 0 44 19.699 44 44v26c0 24.301-19.699 44-44 44H168c-24.301 0-44-19.699-44-44v-26c0-24.301 19.699-44 44-44Z" fill="#f4fbff"/>
+  <circle cx="208" cy="309" r="22" fill="#10201c"/>
+  <path d="M250 292h68v14h-68zm0 34h50v14h-50z" fill="#10201c"/>
+  <path d="M218 116 256 66l38 50" fill="none" stroke="#82e1b2" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

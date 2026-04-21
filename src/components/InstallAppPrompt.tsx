@@ -17,7 +17,58 @@ type NavigatorWithStandalone = Navigator & {
   standalone?: boolean
 }
 
-export default function InstallAppPrompt() {
+const INSTALL_PROMPT_DISMISS_KEY = 'friends-adda:install-prompt-dismissed-at'
+const INSTALL_PROMPT_DISMISS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+function getStoredDismissedAt() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const value = window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY)
+
+  if (!value) {
+    return null
+  }
+
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) ? parsedValue : null
+}
+
+function shouldKeepDismissed() {
+  const dismissedAt = getStoredDismissedAt()
+
+  if (!dismissedAt) {
+    return false
+  }
+
+  return Date.now() - dismissedAt < INSTALL_PROMPT_DISMISS_WINDOW_MS
+}
+
+function persistDismissal() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(
+    INSTALL_PROMPT_DISMISS_KEY,
+    String(Date.now()),
+  )
+}
+
+function clearDismissal() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.removeItem(INSTALL_PROMPT_DISMISS_KEY)
+}
+
+export default function InstallAppPrompt({
+  isSuppressed = false,
+}: {
+  isSuppressed?: boolean
+}) {
   const [manualInstallMode, setManualInstallMode] =
     useState<ManualInstallMode>('none')
   const [deferredPrompt, setDeferredPrompt] =
@@ -46,6 +97,7 @@ export default function InstallAppPrompt() {
 
       setHasMounted(true)
       setIsStandalone(standalone)
+      setIsDismissed(shouldKeepDismissed())
       setManualInstallMode(
         getManualInstallMode(
           window.navigator.userAgent,
@@ -57,6 +109,7 @@ export default function InstallAppPrompt() {
         setDeferredPrompt(null)
         setIsInstructionsOpen(false)
         setIsPrompting(false)
+        clearDismissal()
       }
     }
 
@@ -71,6 +124,7 @@ export default function InstallAppPrompt() {
       setIsInstructionsOpen(false)
       setIsDismissed(true)
       setIsPrompting(false)
+      persistDismissal()
       updateInstallState()
     }
 
@@ -126,7 +180,7 @@ export default function InstallAppPrompt() {
   const isAvailable =
     !isStandalone && (manualInstallMode !== 'none' || Boolean(deferredPrompt))
 
-  if (!hasMounted || !isAvailable || isDismissed) {
+  if (!hasMounted || !isAvailable || isDismissed || isSuppressed) {
     return null
   }
 
@@ -144,9 +198,11 @@ export default function InstallAppPrompt() {
         promptResult?.outcome ?? (await deferredPrompt.userChoice)?.outcome
 
       if (outcome === 'dismissed') {
+        persistDismissal()
         setIsDismissed(true)
       }
     } catch {
+      persistDismissal()
       setIsDismissed(true)
     } finally {
       setDeferredPrompt(null)
@@ -157,7 +213,7 @@ export default function InstallAppPrompt() {
 
   return (
     <section
-      className="glass-card install-prompt-shell"
+      className="glass-card status-banner-shell install-prompt-shell"
       aria-label="Install app prompt"
     >
       <div className="install-prompt-content">
@@ -195,6 +251,7 @@ export default function InstallAppPrompt() {
           className="ghost-button install-prompt-dismiss"
           aria-label="Close install prompt"
           onClick={() => {
+            persistDismissal()
             setIsDismissed(true)
             setIsInstructionsOpen(false)
           }}

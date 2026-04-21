@@ -734,6 +734,65 @@ begin
 end;
 $$;
 
+create or replace function public.update_random_picker_winner_amount(
+  p_activity_id uuid,
+  p_amount numeric
+)
+returns public.event_activities
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_activity public.event_activities;
+  target_event public.events;
+  updated_activity public.event_activities;
+  next_payload jsonb;
+begin
+  if p_amount <= 0 then
+    raise exception 'Amount must be greater than zero';
+  end if;
+
+  select *
+  into target_activity
+  from public.event_activities
+  where id = p_activity_id;
+
+  if target_activity is null then
+    raise exception 'Activity not found';
+  end if;
+
+  select *
+  into target_event
+  from public.events
+  where id = target_activity.event_id;
+
+  if target_event is null or target_event.type <> 'random_picker' then
+    raise exception 'Activity does not belong to a random picker event';
+  end if;
+
+  if not public.is_admin()
+     and not public.has_event_role(target_event.id, array['captain', 'co-captain']) then
+    raise exception 'Only captains, co-captains, or app admins can update winner amounts';
+  end if;
+
+  if jsonb_typeof(coalesce(target_activity.payload, '{}'::jsonb)) = 'object' then
+    next_payload = coalesce(target_activity.payload, '{}'::jsonb);
+  else
+    next_payload = '{}'::jsonb;
+  end if;
+
+  update public.event_activities
+  set
+    payload = jsonb_set(next_payload, '{amount}', to_jsonb(p_amount), true),
+    created_at = now()
+  where id = p_activity_id
+  returning * into updated_activity;
+
+  return updated_activity;
+end;
+$$;
+
 -------------------------------------------------------------------------------
 -- RLS Enablement
 -------------------------------------------------------------------------------
@@ -877,3 +936,4 @@ grant execute on function public.demote_event_member_to_member(uuid, uuid) to au
 grant execute on function public.remove_event_member(uuid, uuid) to authenticated;
 grant execute on function public.upsert_event_fund_payment(uuid, uuid, numeric, integer, integer) to authenticated;
 grant execute on function public.spin_random_picker(uuid, numeric) to authenticated;
+grant execute on function public.update_random_picker_winner_amount(uuid, numeric) to authenticated;

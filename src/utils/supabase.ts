@@ -28,9 +28,9 @@ export type Database = {
         Relationships: []
       }
       event_activities: {
-        Row: { id: string, event_id: string, activity_type: string, payload: any | null, created_at: string }
-        Insert: { id?: string, event_id: string, activity_type: string, payload?: any | null, created_at?: string }
-        Update: { id?: string, event_id?: string, activity_type?: string, payload?: any | null, created_at?: string }
+        Row: { id: string, event_id: string, activity_type: string, payload: unknown | null, created_at: string }
+        Insert: { id?: string, event_id: string, activity_type: string, payload?: unknown | null, created_at?: string }
+        Update: { id?: string, event_id?: string, activity_type?: string, payload?: unknown | null, created_at?: string }
         Relationships: []
       }
     }
@@ -116,6 +116,13 @@ export type Database = {
       spin_random_picker: {
         Args: {
           p_event_id: string
+          p_amount: number
+        }
+        Returns: Database['public']['Tables']['event_activities']['Row']
+      }
+      update_random_picker_winner_amount: {
+        Args: {
+          p_activity_id: string
           p_amount: number
         }
         Returns: Database['public']['Tables']['event_activities']['Row']

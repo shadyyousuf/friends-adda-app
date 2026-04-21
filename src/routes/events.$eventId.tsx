@@ -1,41 +1,34 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Info,
-  Menu,
-  Pencil,
-  Trash2,
-  Trophy,
-  UserRoundPlus,
-  Users,
-} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import {
   useEffect,
   useRef,
   useState,
   type FormEvent,
-  type ReactNode,
   type TouchEvent,
 } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { FundTrackerEventContent } from '../components/events/FundTrackerEventContent'
 import { GeneralEventContent } from '../components/events/GeneralEventContent'
 import { RandomPickerEventContent } from '../components/events/RandomPickerEventContent'
-import {
-  MemberDirectoryCard,
-  type MemberDirectoryMenuAction,
-} from '../components/MemberDirectoryCard'
+import { MemberDirectoryCard } from '../components/MemberDirectoryCard'
+import AddMembersDrawer from '../components/events/detail/AddMembersDrawer'
+import EventDetailMenu, {
+  getEventMenuItems,
+} from '../components/events/detail/EventDetailMenu'
+import EventDetailRouteShell from '../components/events/detail/EventDetailRouteShell'
+import EventEditDrawer from '../components/events/detail/EventEditDrawer'
+import EventMembersPanel from '../components/events/detail/EventMembersPanel'
+import RandomPickerWinnerAmountDrawer from '../components/events/detail/RandomPickerWinnerAmountDrawer'
 import {
   ContributionTimeline,
   formatEventRole,
-  formatEventType,
   formatMoney,
-  formatVisibility,
-  InfoItem,
   MemberAvatar,
 } from '../components/events/EventTypeHelpers'
 import { useAuth } from '../components/AuthProvider'
 import { useEventPageTitle } from '../components/MobileLayout'
+import { useEventDetailMutations } from '../hooks/useEventDetailMutations'
 import {
   buildFundStatusItems,
   buildLeaderboard,
@@ -53,7 +46,6 @@ import {
   demoteEventMemberToMember,
   addMembersToEvent,
   eventDetailQueryOptions,
-  eventKeys,
   deleteEvent,
   extractRandomPickerWinnerId,
   type EventVisibility,
@@ -72,117 +64,6 @@ export const Route = createFileRoute('/events/$eventId')({
   component: EventDetailPage,
 })
 
-type FloatingEventMenuActionType =
-  | 'edit-event'
-  | 'event-details'
-  | 'leaderboard'
-  | 'members'
-  | 'invite-friends'
-  | 'delete-event'
-
-type FloatingEventMenuItem = {
-  type: FloatingEventMenuActionType
-  label: string
-  icon: ReactNode
-  isDanger?: true
-}
-
-function getEventMenuItems(
-  eventType?: string,
-  canDelete?: boolean,
-  canEditEvent?: boolean,
-  canManageMembers?: boolean,
-): FloatingEventMenuItem[] {
-  const items: FloatingEventMenuItem[] = []
-
-  if (eventType === 'fund_tracker') {
-    items.push(
-      {
-        type: 'event-details',
-        label: 'Event details',
-        icon: <Info size={16} />,
-      },
-      {
-        type: 'leaderboard',
-        label: 'Leaderboard',
-        icon: <Trophy size={16} />,
-      },
-      {
-        type: 'members',
-        label: 'Members',
-        icon: <Users size={16} />,
-      },
-      ...(canManageMembers
-        ? [
-            {
-              type: 'invite-friends' as const,
-              label: 'Add Friend',
-              icon: <UserRoundPlus size={16} />,
-            },
-          ]
-        : []),
-    )
-  } else if (eventType === 'random_picker') {
-    items.push(
-      {
-        type: 'event-details' as const,
-        label: 'Event details',
-        icon: <Info size={16} />,
-      },
-      {
-        type: 'members',
-        label: 'Members',
-        icon: <Users size={16} />,
-      },
-      ...(canManageMembers
-        ? [
-            {
-              type: 'invite-friends' as const,
-              label: 'Add Friend',
-              icon: <UserRoundPlus size={16} />,
-            },
-          ]
-        : []),
-    )
-  } else {
-    if (canEditEvent) {
-      items.push({
-        type: 'edit-event' as const,
-        label: 'Edit event',
-        icon: <Pencil size={16} />,
-      })
-    }
-
-    items.push(
-      {
-        type: 'members',
-        label: 'Members',
-        icon: <Users size={16} />,
-      },
-        ...(canManageMembers
-        ? [
-            {
-              type: 'invite-friends' as const,
-              label: 'Add Friend',
-              icon: <UserRoundPlus size={16} />,
-            },
-          ]
-        : []),
-    )
-  }
-
-    if (canDelete) {
-      items.push({
-        type: 'delete-event' as const,
-        label: 'Delete event',
-        icon: <Trash2 size={16} />,
-        isDanger: true,
-      })
-    }
-
-  return items
-}
-
 function getMonthlyDefaultAmount(event: EventDetailData['event']): number | null {
   if (!event?.monthly_default_amount) {
     return null
@@ -198,16 +79,13 @@ function EventDetailPage() {
   const { eventId } = Route.useParams()
   const navigate = Route.useNavigate()
   const { user, profile, authStatus, isProfileLoading } = useAuth()
-  const queryClient = useQueryClient()
   const { setEventTitle } = useEventPageTitle()
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [activePanel, setActivePanel] = useState<
     null | 'members' | 'leaderboard' | 'event-details' | 'add-members'
   >(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isEditingEvent, setIsEditingEvent] = useState(false)
-  const [activeAction, setActiveAction] = useState<string | null>(null)
   const [billAmount, setBillAmount] = useState('')
   const [selectedPeriodKey, setSelectedPeriodKey] = useState(() =>
     periodKey(getCurrentPeriod()),
@@ -235,13 +113,25 @@ function EventDetailPage() {
   const [randomPickerWinnerAmount, setRandomPickerWinnerAmount] = useState('')
   const touchStartXRef = useRef<number | null>(null)
   const userId = user?.id ?? ''
+  const {
+    activeAction,
+    errorMessage,
+    setErrorMessage,
+    clearError,
+    invalidateDetail,
+    invalidateDetailAndDashboard,
+    runMutation,
+  } = useEventDetailMutations({
+    eventId,
+    viewerId: userId,
+  })
 
   const detailQuery = useQuery({
-    ...eventDetailQueryOptions(eventId),
+    ...eventDetailQueryOptions(userId, eventId),
     enabled: authStatus === 'signed-in' && Boolean(user && profile?.is_approved),
   })
   const approvedProfilesQuery = useQuery({
-    ...approvedProfilesQueryOptions(),
+    ...approvedProfilesQueryOptions(userId),
     enabled: Boolean(user && profile?.is_approved),
   })
 
@@ -384,6 +274,25 @@ function EventDetailPage() {
       })
     : addMemberCandidates
 
+  function syncEventEditFields(nextEvent: EventDetailData['event']) {
+    if (!nextEvent) {
+      return
+    }
+
+    setEditTitle(nextEvent.title)
+    setEditDescription(nextEvent.description ?? '')
+    setEditEventDate(nextEvent.event_date.split('T')[0] ?? '')
+    setEditVisibility(nextEvent.visibility)
+    setEditTargetAmount(
+      nextEvent.target_amount ? String(nextEvent.target_amount) : '',
+    )
+    setEditMonthlyDefaultAmount(
+      nextEvent.monthly_default_amount
+        ? String(nextEvent.monthly_default_amount)
+        : '',
+    )
+  }
+
   useEffect(() => {
     if (!event) {
       setEventTitle(null)
@@ -391,14 +300,7 @@ function EventDetailPage() {
     }
 
     setEventTitle(event.title)
-    setEditTitle(event.title)
-    setEditDescription(event.description ?? '')
-    setEditEventDate(event.event_date.split('T')[0] ?? '')
-    setEditVisibility(event.visibility)
-    setEditTargetAmount(event.target_amount ? String(event.target_amount) : '')
-    setEditMonthlyDefaultAmount(
-      event.monthly_default_amount ? String(event.monthly_default_amount) : '',
-    )
+    syncEventEditFields(event)
 
     return () => {
       setEventTitle(null)
@@ -420,32 +322,24 @@ function EventDetailPage() {
     userId: string,
   ) {
     const actionKey = `${action}:${userId}`
-    setErrorMessage(null)
-    setActiveAction(actionKey)
 
-    try {
-      if (action === 'make-captain') {
-        await transferEventCaptain(eventId, userId)
-      } else if (action === 'make-co-captain') {
-        await promoteEventMemberToCoCaptain(eventId, userId)
-      } else if (action === 'make-member') {
-        await demoteEventMemberToMember(eventId, userId)
-      } else {
-        await removeEventMember(eventId, userId)
-      }
+    await runMutation(
+      actionKey,
+      async () => {
+        if (action === 'make-captain') {
+          await transferEventCaptain(eventId, userId)
+        } else if (action === 'make-co-captain') {
+          await promoteEventMemberToCoCaptain(eventId, userId)
+        } else if (action === 'make-member') {
+          await demoteEventMemberToMember(eventId, userId)
+        } else {
+          await removeEventMember(eventId, userId)
+        }
 
-      await queryClient.invalidateQueries({
-        queryKey: eventKeys.detail(eventId),
-      })
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to update event members.',
-      )
-    } finally {
-      setActiveAction(null)
-    }
+        await invalidateDetail()
+      },
+      'Failed to update event members.',
+    )
   }
 
   async function handleEventUpdate(eventForm: FormEvent<HTMLFormElement>) {
@@ -454,6 +348,8 @@ function EventDetailPage() {
     if (!detail.event) {
       return
     }
+
+    const currentEvent = detail.event
 
     const title = editTitle.trim()
 
@@ -467,15 +363,15 @@ function EventDetailPage() {
       return
     }
 
-    setActiveAction('event-update')
-
-    try {
-      const normalizedTargetAmount =
-        detail.event.type === 'fund_tracker' && editTargetAmount.trim()
+    await runMutation(
+      'event-update',
+      async () => {
+        const normalizedTargetAmount =
+        currentEvent.type === 'fund_tracker' && editTargetAmount.trim()
           ? Number(editTargetAmount)
           : null
-      const normalizedMonthlyDefaultAmount =
-        detail.event.type === 'fund_tracker' && editMonthlyDefaultAmount.trim()
+        const normalizedMonthlyDefaultAmount =
+        currentEvent.type === 'fund_tracker' && editMonthlyDefaultAmount.trim()
           ? Number(editMonthlyDefaultAmount)
           : null
 
@@ -494,30 +390,24 @@ function EventDetailPage() {
       }
 
       await updateEvent({
-        eventId: detail.event.id,
+        eventId: currentEvent.id,
         title,
         description: editDescription.trim() || null,
         eventDate: editEventDate,
         visibility: editVisibility,
         targetAmount:
-          detail.event.type === 'fund_tracker' ? normalizedTargetAmount : undefined,
+          currentEvent.type === 'fund_tracker' ? normalizedTargetAmount : undefined,
         monthlyDefaultAmount:
-          detail.event.type === 'fund_tracker'
+          currentEvent.type === 'fund_tracker'
             ? normalizedMonthlyDefaultAmount
             : undefined,
       })
 
       setIsEditingEvent(false)
-      await queryClient.invalidateQueries({
-        queryKey: eventKeys.detail(eventId),
-      })
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to update event.',
-      )
-    } finally {
-      setActiveAction(null)
-    }
+      await invalidateDetail()
+      },
+      'Failed to update event.',
+    )
   }
 
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
@@ -541,20 +431,22 @@ function EventDetailPage() {
       return
     }
 
-    await handleModuleAction(`payment:${paymentDrawerUserId}`, async () => {
-      await upsertEventFundPayment({
-        eventId,
-        userId: paymentDrawerUserId,
-        amount,
-        month: selectedPeriod.month,
-        year: selectedPeriod.year,
-      })
-      setPaymentDrawerUserId(null)
-      setPaymentAmount(defaultPaymentAmount)
-      await queryClient.invalidateQueries({
-        queryKey: eventKeys.detail(eventId),
-      })
-    })
+    await runMutation(
+      `payment:${paymentDrawerUserId}`,
+      async () => {
+        await upsertEventFundPayment({
+          eventId,
+          userId: paymentDrawerUserId,
+          amount,
+          month: selectedPeriod.month,
+          year: selectedPeriod.year,
+        })
+        setPaymentDrawerUserId(null)
+        setPaymentAmount(defaultPaymentAmount)
+        await invalidateDetail()
+      },
+      'Failed to save payment.',
+    )
   }
 
   function openRandomPickerWinnerAmountDrawer(
@@ -592,17 +484,19 @@ function EventDetailPage() {
 
     const normalizedAmount = Math.round(amount)
 
-    await handleModuleAction(`random-winner:${editingRandomPickerWinner.activityId}`, async () => {
-      await updateRandomPickerWinnerAmount(
-        editingRandomPickerWinner.activityId,
-        normalizedAmount,
-      )
-      setEditingRandomPickerWinner(null)
-      setRandomPickerWinnerAmount('')
-      await queryClient.invalidateQueries({
-        queryKey: eventKeys.detail(eventId),
-      })
-    })
+    await runMutation(
+      `random-winner:${editingRandomPickerWinner.activityId}`,
+      async () => {
+        await updateRandomPickerWinnerAmount(
+          editingRandomPickerWinner.activityId,
+          normalizedAmount,
+        )
+        setEditingRandomPickerWinner(null)
+        setRandomPickerWinnerAmount('')
+        await invalidateDetail()
+      },
+      'Failed to update winner amount.',
+    )
   }
 
   function openPaymentDrawer(userId: string) {
@@ -665,7 +559,7 @@ function EventDetailPage() {
     setIsMenuOpen(false)
     setAddMemberSearch('')
     setSelectedMemberIds([])
-    setErrorMessage(null)
+    clearError()
   }
 
   function openEventDetailsPanel(editMode: boolean) {
@@ -676,38 +570,7 @@ function EventDetailPage() {
     setIsEditingEvent(canEditEvent && editMode)
     setActivePanel('event-details')
     setIsMenuOpen(false)
-
-    if (canEditEvent && editMode) {
-      setEditTitle(detail.event.title)
-      setEditDescription(detail.event.description ?? '')
-      setEditEventDate(detail.event.event_date.split('T')[0] ?? '')
-      setEditVisibility(detail.event.visibility)
-      setEditTargetAmount(
-        detail.event.type === 'fund_tracker' && detail.event.target_amount
-          ? String(detail.event.target_amount)
-          : '',
-      )
-      setEditMonthlyDefaultAmount(
-        detail.event.type === 'fund_tracker' && detail.event.monthly_default_amount
-          ? String(detail.event.monthly_default_amount)
-          : '',
-      )
-    } else {
-      setEditTitle(detail.event.title)
-      setEditDescription(detail.event.description ?? '')
-      setEditEventDate(detail.event.event_date.split('T')[0] ?? '')
-      setEditVisibility(detail.event.visibility)
-      setEditTargetAmount(
-        detail.event.type === 'fund_tracker' && detail.event.target_amount
-          ? String(detail.event.target_amount)
-          : '',
-      )
-      setEditMonthlyDefaultAmount(
-        detail.event.type === 'fund_tracker' && detail.event.monthly_default_amount
-          ? String(detail.event.monthly_default_amount)
-          : '',
-      )
-    }
+    syncEventEditFields(detail.event)
   }
 
   function toggleAddMemberSelection(memberId: string) {
@@ -723,16 +586,17 @@ function EventDetailPage() {
       return
     }
 
-    await handleModuleAction('add-members', async () => {
-      await addMembersToEvent(eventId, selectedMemberIds)
-      setActivePanel(null)
-      setAddMemberSearch('')
-      setSelectedMemberIds([])
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: eventKeys.detail(eventId) }),
-        queryClient.invalidateQueries({ queryKey: eventKeys.dashboard(userId) }),
-      ])
-    })
+    await runMutation(
+      'add-members',
+      async () => {
+        await addMembersToEvent(eventId, selectedMemberIds)
+        setActivePanel(null)
+        setAddMemberSearch('')
+        setSelectedMemberIds([])
+        await invalidateDetailAndDashboard()
+      },
+      'Failed to add members.',
+    )
   }
 
   async function handleDeleteEvent() {
@@ -746,32 +610,24 @@ function EventDetailPage() {
       return
     }
 
-    setActiveAction('delete-event')
+    const wasDeleted = await runMutation(
+      'delete-event',
+      async () => {
+        await deleteEvent(eventId)
+        setIsDeleteConfirmOpen(false)
+        await invalidateDetailAndDashboard()
+      },
+      'Failed to delete event.',
+    )
 
-    try {
-      await deleteEvent(eventId)
-      setIsDeleteConfirmOpen(false)
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: eventKeys.dashboard(userId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: eventKeys.detail(eventId),
-        }),
-      ])
-      void navigate({ to: '/' })
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to delete event.',
-      )
-    } finally {
-      setActiveAction(null)
+    if (wasDeleted) {
+      void navigate({ to: '/', search: { create: undefined } })
     }
   }
 
   function openDeleteConfirmation() {
     setIsDeleteConfirmOpen(true)
-    setErrorMessage(null)
+    clearError()
     setIsMenuOpen(false)
   }
 
@@ -787,14 +643,16 @@ function EventDetailPage() {
 
     setActivePanel(null)
     setIsEditingEvent(false)
-    setErrorMessage(null)
+    clearError()
   }
 
   function closeFloatingMenu() {
     setIsMenuOpen(false)
   }
 
-  function handleFloatingMenuSelect(action: FloatingEventMenuActionType) {
+  function handleFloatingMenuSelect(
+    action: Parameters<typeof EventDetailMenu>[0]['items'][number]['type'],
+  ) {
     closeFloatingMenu()
 
     if (action === 'edit-event') {
@@ -843,7 +701,11 @@ function EventDetailPage() {
           <Link to="/login" className="primary-button">
             Log in
           </Link>
-          <Link to="/" className="secondary-button">
+          <Link
+            to="/"
+            search={{ create: undefined }}
+            className="secondary-button"
+          >
             Back to dashboard
           </Link>
         </div>
@@ -860,7 +722,11 @@ function EventDetailPage() {
       <section className="glass-card panel stack-md">
         <p className="eyebrow">Event</p>
         <h2 className="panel-title">Event not found</h2>
-        <Link to="/" className="secondary-button">
+        <Link
+          to="/"
+          search={{ create: undefined }}
+          className="secondary-button"
+        >
           Back to dashboard
         </Link>
       </section>
@@ -868,14 +734,10 @@ function EventDetailPage() {
   }
 
   return (
-    <div className="stack-lg">
-      {(detailError || errorMessage) && (
-        <section className="glass-card panel">
-          {detailError ? <p className="form-error">{detailError}</p> : null}
-          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
-        </section>
-      )}
-
+    <EventDetailRouteShell
+      detailError={detailError}
+      errorMessage={errorMessage}
+    >
       {event?.type === 'fund_tracker' ? (
         <FundTrackerEventContent
           event={event}
@@ -919,131 +781,28 @@ function EventDetailPage() {
         />
       ) : null}
 
-      {activePanel === 'members' ? (
-        <section className="drawer-overlay" onClick={() => closePanel()}>
-          <div
-            className="glass-card create-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-handle" aria-hidden="true" />
-            <div className="split-header">
-              <div className="section-header-copy">
-                <p className="eyebrow">Event members</p>
-                <h3 className="section-title">Members</h3>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => {
-                  closePanel()
-                }}
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="stack-sm">
-                {detail.subscribers.map((subscriber) => {
-                  const isCurrentUser = subscriber.user_id === user?.id
-                  const canMakeCaptain =
-                    Boolean(canManageMembers) &&
-                    subscriber.event_role !== 'captain' &&
-                    !isCurrentUser
-                  const canMakeCoCaptain =
-                    Boolean(canManageMembers) &&
-                    (subscriber.event_role === 'member' ||
-                      subscriber.event_role === 'co-captain') &&
-                    !isCurrentUser
-                  const canMakeMember =
-                    Boolean(canManageMembers) &&
-                    subscriber.event_role === 'co-captain' &&
-                    (!isCurrentUser || profile?.role === 'admin')
-                  const canRemove =
-                    Boolean(canManageMembers) &&
-                    subscriber.event_role !== 'captain' &&
-                    (!isCurrentUser || profile?.role === 'admin')
-                  const menuActions: MemberDirectoryMenuAction[] = []
-
-                  if (canMakeCaptain) {
-                    menuActions.push({
-                      id: `make-captain:${subscriber.user_id}`,
-                      label:
-                        activeAction === `make-captain:${subscriber.user_id}`
-                          ? 'Making captain...'
-                          : 'Make Captain',
-                      onClick: () => void handleAction('make-captain', subscriber.user_id),
-                    })
-                  }
-
-                  if (canMakeCoCaptain) {
-                    const isCoCaptainLimitReached =
-                      subscriber.event_role !== 'co-captain' && coCaptainCount >= 2
-
-                    menuActions.push({
-                      id: `make-co-captain:${subscriber.user_id}`,
-                      label:
-                        activeAction === `make-co-captain:${subscriber.user_id}`
-                          ? 'Promoting...'
-                          : subscriber.event_role === 'co-captain'
-                            ? 'Already co-captain'
-                            : isCoCaptainLimitReached
-                              ? 'Co-captain limit reached'
-                              : 'Make Co-captain',
-                      disabled:
-                        subscriber.event_role === 'co-captain' ||
-                        isCoCaptainLimitReached,
-                      onClick: () =>
-                        void handleAction('make-co-captain', subscriber.user_id),
-                    })
-                  }
-
-                  if (canMakeMember) {
-                    menuActions.push({
-                      id: `make-member:${subscriber.user_id}`,
-                      label:
-                        activeAction === `make-member:${subscriber.user_id}`
-                          ? 'Updating...'
-                          : 'Make Member',
-                      onClick: () => void handleAction('make-member', subscriber.user_id),
-                    })
-                  }
-
-                  if (canRemove) {
-                    menuActions.push({
-                      id: `remove:${subscriber.user_id}`,
-                      label: 'Remove',
-                      onClick: () => void handleAction('remove', subscriber.user_id),
-                      isDanger: true,
-                    })
-                  }
-
-                  return (
-                    <MemberDirectoryCard
-                      key={subscriber.user_id}
-                      profile={{
-                        id: subscriber.user_id,
-                        full_name: getMemberName(subscriber),
-                        email: subscriber.profiles.email,
-                        role: subscriber.profiles.role,
-                        blood_group: subscriber.profiles.blood_group,
-                      }}
-                      roleLabel={formatEventRole(subscriber.event_role)}
-                      detailLines={[]}
-                      menuActions={menuActions}
-                      activeAction={activeAction}
-                    />
-                  )
-                })}
-            </div>
-          </div>
-        </section>
-      ) : null}
+      <EventMembersPanel
+        isOpen={activePanel === 'members'}
+        subscribers={detail.subscribers}
+        currentUserId={user.id}
+        currentUserRole={profile?.role}
+        canManageMembers={Boolean(canManageMembers)}
+        coCaptainCount={coCaptainCount}
+        activeAction={activeAction}
+        onClose={closePanel}
+        onAction={(action, memberUserId) => {
+          void handleAction(action, memberUserId)
+        }}
+      />
 
       {activePanel === 'leaderboard' ? (
         <section className="drawer-overlay" onClick={() => closePanel()}>
           <div
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Contribution leaderboard"
           >
             <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
@@ -1104,311 +863,52 @@ function EventDetailPage() {
         </section>
       ) : null}
 
-      {activePanel === 'add-members' ? (
-        <section className="drawer-overlay" onClick={() => closePanel()}>
-          <div
-            className="glass-card create-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-handle" aria-hidden="true" />
-            <div className="section-header-copy">
-              <p className="eyebrow">Event members</p>
-              <h3 className="section-title">Add Friend</h3>
-            </div>
+      <AddMembersDrawer
+        isOpen={activePanel === 'add-members'}
+        members={filteredAddMemberCandidates}
+        selectedMemberIds={selectedMemberIds}
+        searchValue={addMemberSearch}
+        activeAction={activeAction}
+        onSearchChange={setAddMemberSearch}
+        onToggleMember={toggleAddMemberSelection}
+        onAddMembers={() => {
+          void handleAddMembers()
+        }}
+        onClose={closePanel}
+      />
 
-            <div className="add-members-drawer-content">
-              {filteredAddMemberCandidates.length === 0 ? (
-                <div className="empty-state">
-                  <h4 className="empty-state-title">
-                    {addMemberSearchTerm ? 'No matching members' : 'No new members to add'}
-                  </h4>
-                </div>
-              ) : (
-                <div className="add-members-list">
-                  {filteredAddMemberCandidates.map((member) => {
-                    const checkboxId = `add-member-${member.id}`
-                    const isChecked = selectedMemberIds.includes(member.id)
-
-                    return (
-                      <label
-                        key={member.id}
-                        htmlFor={checkboxId}
-                        className={`add-member-item${isChecked ? ' is-selected' : ''}`}
-                      >
-                        <MemberAvatar
-                          member={member}
-                          avatarText={member.blood_group?.trim() || null}
-                        />
-                      <div className="stack-xs add-member-meta">
-                          <strong className="info-value">
-                            {member.full_name || 'Unnamed member'}
-                          </strong>
-                          <span className="member-directory-role-badge">
-                            {member.role === 'admin' ? 'App Admin' : 'Member'}
-                          </span>
-                        </div>
-                        <input
-                          id={checkboxId}
-                          type="checkbox"
-                          className="add-member-checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleAddMemberSelection(member.id)}
-                        />
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-
-              <div className="add-members-toolbar">
-                <label className="add-members-search">
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={addMemberSearch}
-                    onChange={(event) => setAddMemberSearch(event.target.value)}
-                    placeholder="Search by name or email"
-                    aria-label="Search members"
-                  />
-                </label>
-                <div className="add-members-toolbar-actions">
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={
-                      selectedMemberIds.length === 0 ||
-                      activeAction === 'add-members'
-                    }
-                    onClick={() => void handleAddMembers()}
-                  >
-                    {activeAction === 'add-members'
-                    ? 'Adding...'
-                      : `Add Friend (${selectedMemberIds.length})`}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      closePanel()
-                    }}
-                    disabled={activeAction === 'add-members'}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {activePanel === 'event-details' && detail.event ? (
-        <section
-          className="drawer-overlay"
-          onClick={() => {
-            closePanel()
-          }}
-        >
-          <div
-            className="glass-card create-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-handle" aria-hidden="true" />
-            <div className="split-header">
-              <div className="section-header-copy">
-                <p className="eyebrow">Event details</p>
-                <h3 className="section-title">{detail.event.title}</h3>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => closePanel()}
-              >
-                Close
-              </button>
-            </div>
-
-              {!isEditingEvent && (
-                <>
-                  <p className="section-note">
-                    {detail.event.description || 'No description added for this event yet.'}
-                  </p>
-                  <div className="info-grid">
-                    <InfoItem
-                      label="Type"
-                      value={formatEventType(detail.event.type)}
-                    />
-                    <InfoItem
-                      label="Privacy"
-                      value={formatVisibility(detail.event.visibility)}
-                    />
-                    <InfoItem
-                      label="Date"
-                      value={
-                        detail.event.event_date
-                          ? new Date(detail.event.event_date).toLocaleDateString()
-                          : 'Unknown'
-                      }
-                    />
-                    <InfoItem
-                      label="Status"
-                      value={detail.event.status ?? 'Unknown'}
-                    />
-                    <InfoItem
-                      label="Members"
-                      value={String(detail.subscribers.length)}
-                    />
-                    {detail.event.type === 'fund_tracker' ? (
-                      <>
-                        <InfoItem
-                          label="Target"
-                          value={
-                            detail.event.target_amount
-                              ? formatMoney(detail.event.target_amount)
-                              : 'No target'
-                          }
-                        />
-                        <InfoItem
-                          label="Monthly default"
-                          value={
-                            detail.event.monthly_default_amount
-                              ? formatMoney(detail.event.monthly_default_amount)
-                              : 'Not set'
-                          }
-                        />
-                      </>
-                    ) : null}
-                  </div>
-                  {canEditEvent && (
-                    <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={() => {
-                          setIsEditingEvent(true)
-                          setEditTitle(detail.event?.title ?? '')
-                          setEditDescription(detail.event?.description ?? '')
-                          setEditEventDate(detail.event?.event_date.split('T')[0] ?? '')
-                          setEditVisibility(detail.event?.visibility ?? 'public')
-                          setEditTargetAmount(
-                            detail.event?.type === 'fund_tracker' &&
-                              detail.event?.target_amount
-                              ? String(detail.event.target_amount)
-                              : '',
-                          )
-                          setEditMonthlyDefaultAmount(
-                            detail.event?.type === 'fund_tracker' &&
-                              detail.event?.monthly_default_amount
-                              ? String(detail.event.monthly_default_amount)
-                              : '',
-                          )
-                        }}
-                      >
-                        Edit event
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-              {isEditingEvent && (
-                <form className="stack-md" onSubmit={handleEventUpdate}>
-                  <label className="stack-xs">
-                    <span className="field-label">Title</span>
-                    <input
-                      required
-                      type="text"
-                      className="field-input"
-                      value={editTitle}
-                      onChange={(event) => setEditTitle(event.target.value)}
-                    />
-                  </label>
-
-                  <label className="stack-xs">
-                    <span className="field-label">Description</span>
-                    <textarea
-                      className="field-input field-textarea"
-                      value={editDescription}
-                      onChange={(event) => setEditDescription(event.target.value)}
-                    />
-                  </label>
-
-                  <div className="create-form-row">
-                    <label className="stack-xs">
-                      <span className="field-label">Event date</span>
-                      <input
-                        required
-                        type="date"
-                        className="field-input"
-                        value={editEventDate}
-                        onChange={(event) => setEditEventDate(event.target.value)}
-                      />
-                    </label>
-
-                    <label className="stack-xs">
-                      <span className="field-label">Privacy</span>
-                      <select
-                        className="field-input"
-                        value={editVisibility}
-                        onChange={(event) =>
-                          setEditVisibility(event.target.value as EventVisibility)
-                        }
-                      >
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  {detail.event.type === 'fund_tracker' ? (
-                    <div className="create-form-row">
-                      <label className="stack-xs">
-                        <span className="field-label">Target amount</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="field-input"
-                          value={editTargetAmount}
-                          onChange={(event) => setEditTargetAmount(event.target.value)}
-                        />
-                      </label>
-                      <label className="stack-xs">
-                        <span className="field-label">Monthly(Optional)</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="field-input"
-                          value={editMonthlyDefaultAmount}
-                          onChange={(event) =>
-                            setEditMonthlyDefaultAmount(event.target.value)
-                          }
-                        />
-                      </label>
-                    </div>
-                  ) : null}
-
-                  <div className="actions-row">
-                    <button
-                      type="submit"
-                      className="primary-button"
-                      disabled={activeAction === 'event-update'}
-                    >
-                      {activeAction === 'event-update' ? 'Saving...' : 'Save changes'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => setIsEditingEvent(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-          </div>
-        </section>
-      ) : null}
+      <EventEditDrawer
+        event={detail.event}
+        memberCount={detail.subscribers.length}
+        isOpen={activePanel === 'event-details'}
+        isEditing={isEditingEvent}
+        canEditEvent={Boolean(canEditEvent)}
+        activeAction={activeAction}
+        title={editTitle}
+        description={editDescription}
+        eventDate={editEventDate}
+        visibility={editVisibility}
+        targetAmount={editTargetAmount}
+        monthlyDefaultAmount={editMonthlyDefaultAmount}
+        onTitleChange={setEditTitle}
+        onDescriptionChange={setEditDescription}
+        onEventDateChange={setEditEventDate}
+        onVisibilityChange={setEditVisibility}
+        onTargetAmountChange={setEditTargetAmount}
+        onMonthlyDefaultAmountChange={setEditMonthlyDefaultAmount}
+        onSubmit={(eventForm) => {
+          void handleEventUpdate(eventForm)
+        }}
+        onStartEditing={() => {
+          setIsEditingEvent(true)
+          syncEventEditFields(detail.event)
+        }}
+        onStopEditing={() => {
+          setIsEditingEvent(false)
+          syncEventEditFields(detail.event)
+        }}
+        onClose={closePanel}
+      />
 
       {paymentDrawerUserId && paymentMember ? (
         <section
@@ -1418,6 +918,9 @@ function EventDetailPage() {
           <div
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Record fund payment"
           >
             <div className="drawer-handle" aria-hidden="true" />
             <div className="section-header-copy">
@@ -1468,76 +971,25 @@ function EventDetailPage() {
         </section>
       ) : null}
 
-      {editingRandomPickerWinner ? (
-        <section
-          className="drawer-overlay"
-          onClick={() => closeRandomPickerWinnerAmountDrawer()}
-        >
-          <div
-            className="glass-card create-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="drawer-handle" aria-hidden="true" />
-            <div className="split-header">
-              <div className="section-header-copy">
-                <p className="eyebrow">Random picker</p>
-                <h3 className="section-title">Edit winner amount</h3>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => closeRandomPickerWinnerAmountDrawer()}
-              >
-                Close
-              </button>
-            </div>
-            <p className="field-label">{editingRandomPickerWinner.winnerName}</p>
-            <form className="stack-md" onSubmit={handleRandomPickerWinnerAmountSubmit}>
-              <label className="stack-xs">
-                <span className="field-label">Amount</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  className="field-input"
-                  value={randomPickerWinnerAmount}
-                  onChange={(event) =>
-                    setRandomPickerWinnerAmount(event.target.value)
-                  }
-                />
-              </label>
-              <div className="actions-row">
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={
-                    activeAction ===
-                    `random-winner:${editingRandomPickerWinner.activityId}`
-                  }
-                >
-                  {activeAction ===
-                  `random-winner:${editingRandomPickerWinner.activityId}`
-                    ? 'Updating...'
-                    : 'Update'}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => closeRandomPickerWinnerAmountDrawer()}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </section>
-      ) : null}
+      <RandomPickerWinnerAmountDrawer
+        winner={editingRandomPickerWinner}
+        amount={randomPickerWinnerAmount}
+        activeAction={activeAction}
+        onAmountChange={setRandomPickerWinnerAmount}
+        onSubmit={(eventForm) => {
+          void handleRandomPickerWinnerAmountSubmit(eventForm)
+        }}
+        onClose={closeRandomPickerWinnerAmountDrawer}
+      />
 
       {historyUserId && selectedHistoryMember ? (
         <section className="drawer-overlay" onClick={() => setHistoryUserId(null)}>
           <div
             className="glass-card create-drawer member-history-drawer"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Member contribution history"
           >
             <div className="drawer-handle" aria-hidden="true" />
             <div className="split-header">
@@ -1592,35 +1044,13 @@ function EventDetailPage() {
         </section>
       ) : null}
 
-      <button
-        type="button"
-        className="fab-button event-fab-trigger"
-        aria-label="Open event actions"
-        aria-expanded={isMenuOpen}
-        onClick={() => setIsMenuOpen((current) => !current)}
-      >
-        <Menu size={20} />
-      </button>
-
-      {isMenuOpen ? (
-        <div className="event-fab-menu-overlay" onClick={closeFloatingMenu} />
-      ) : null}
-
-      {isMenuOpen ? (
-        <div className="event-fab-menu" role="menu" aria-label="Event actions">
-          {menuActionItems.map((item) => (
-            <button
-              key={item.type}
-              type="button"
-              className={`event-fab-menu-item${item.isDanger ? ' is-danger' : ''}`}
-              onClick={() => handleFloatingMenuSelect(item.type)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <EventDetailMenu
+        isOpen={isMenuOpen}
+        items={menuActionItems}
+        onToggle={() => setIsMenuOpen((current) => !current)}
+        onClose={closeFloatingMenu}
+        onSelect={handleFloatingMenuSelect}
+      />
 
       {isDeleteConfirmOpen ? (
         <section
@@ -1630,6 +1060,9 @@ function EventDetailPage() {
           <div
             className="glass-card create-drawer delete-event-drawer"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Delete event confirmation"
           >
             <div className="drawer-handle" aria-hidden="true" />
             <div className="section-header-copy">
@@ -1662,23 +1095,8 @@ function EventDetailPage() {
           </div>
         </section>
       ) : null}
-    </div>
+    </EventDetailRouteShell>
   )
-
-  async function handleModuleAction(actionKey: string, action: () => Promise<void>) {
-    setErrorMessage(null)
-    setActiveAction(actionKey)
-
-    try {
-      await action()
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to update event module.',
-      )
-    } finally {
-      setActiveAction(null)
-    }
-  }
 
   async function handleSpin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1695,29 +1113,31 @@ function EventDetailPage() {
       return
     }
 
-    await handleModuleAction('spin', async () => {
-      const maxAttempts = Math.max(detail.subscribers.length * 12, 24)
-      let validSpinPicked = false
+    await runMutation(
+      'spin',
+      async () => {
+        const maxAttempts = Math.max(detail.subscribers.length * 12, 24)
+        let validSpinPicked = false
 
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const activity = await spinRandomPicker(eventId, amount)
-        const pickedWinnerId = extractRandomPickerWinnerId(activity)
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          const activity = await spinRandomPicker(eventId, amount)
+          const pickedWinnerId = extractRandomPickerWinnerId(activity)
 
-        if (pickedWinnerId && !randomPickerWinnerIds.has(pickedWinnerId)) {
-          validSpinPicked = true
-          break
+          if (pickedWinnerId && !randomPickerWinnerIds.has(pickedWinnerId)) {
+            validSpinPicked = true
+            break
+          }
         }
-      }
 
-      if (!validSpinPicked) {
-        throw new Error('Could not pick a new winner. Please try again.')
-      }
+        if (!validSpinPicked) {
+          throw new Error('Could not pick a new winner. Please try again.')
+        }
 
-      setBillAmount('')
-      await queryClient.invalidateQueries({
-        queryKey: eventKeys.detail(eventId),
-      })
-    })
+        setBillAmount('')
+        await invalidateDetail()
+      },
+      'Failed to update event module.',
+    )
   }
 }
 function useAnimatedNumber(target: number) {

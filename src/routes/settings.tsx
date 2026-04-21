@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
@@ -7,20 +7,13 @@ import RefreshIconButton from '../components/RefreshIconButton'
 import {
   MemberDirectoryCard,
 } from '../components/MemberDirectoryCard'
+import { useMemberAdminActions } from '../hooks/useMemberAdminActions'
+import { useThemePreference } from '../hooks/useThemePreference'
 import { signOut } from '../utils/auth'
-import {
-  applyThemeMode,
-  getStoredThemeMode,
-  setThemeMode,
-  type ThemeMode,
-} from '../utils/theme'
+import { type ThemeMode } from '../utils/theme'
 import {
   approvedMemberProfilesQueryOptions,
-  approveUser,
-  removeUserFromApp,
   pendingProfilesQueryOptions,
-  profileKeys,
-  promoteUserToAdmin,
   updateOwnProfile,
 } from '../utils/profile'
 
@@ -30,16 +23,22 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsPage() {
   const { user, profile, authStatus, isProfileLoading, refreshProfile } = useAuth()
-  const queryClient = useQueryClient()
+  const viewerId = user?.id ?? ''
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [bloodGroup, setBloodGroup] = useState(profile?.blood_group ?? '')
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
-  const [adminError, setAdminError] = useState<string | null>(null)
-  const [activeMemberAction, setActiveMemberAction] = useState<string | null>(null)
   const [isRefreshingProfile, setIsRefreshingProfile] = useState(false)
+  const {
+    activeAction: activeMemberAction,
+    error: adminError,
+    clearError: clearAdminError,
+    approveMember,
+    promoteMember,
+    removeMember,
+  } = useMemberAdminActions(viewerId)
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '')
@@ -48,11 +47,11 @@ function SettingsPage() {
 
   const isAdmin = profile?.role === 'admin'
   const pendingProfilesQuery = useQuery({
-    ...pendingProfilesQueryOptions(),
+    ...pendingProfilesQueryOptions(viewerId),
     enabled: isAdmin,
   })
   const approvedMembersQuery = useQuery({
-    ...approvedMemberProfilesQueryOptions(),
+    ...approvedMemberProfilesQueryOptions(viewerId),
     enabled: isAdmin,
   })
   const pendingProfiles = pendingProfilesQuery.data ?? []
@@ -100,7 +99,7 @@ function SettingsPage() {
   }
 
   async function refreshAdminLists() {
-    setAdminError(null)
+    clearAdminError()
     await Promise.all([
       pendingProfilesQuery.refetch(),
       approvedMembersQuery.refetch(),
@@ -124,50 +123,15 @@ function SettingsPage() {
   }
 
   async function handleApprove(userId: string) {
-    await runMemberAction(
-      `approve:${userId}`,
-      () => approveUser(userId),
-      'Failed to approve user.',
-    )
+    await approveMember(userId)
   }
 
   async function handlePromote(userId: string) {
-    await runMemberAction(
-      `promote:${userId}`,
-      () => promoteUserToAdmin(userId),
-      'Failed to promote user.',
-    )
+    await promoteMember(userId)
   }
 
   async function handleRemoveFromApp(userId: string) {
-    await runMemberAction(
-      `remove:${userId}`,
-      () => removeUserFromApp(userId),
-      'Failed to remove user from app.',
-    )
-  }
-
-  async function runMemberAction(
-    actionKey: string,
-    action: () => Promise<unknown>,
-    failureMessage: string,
-  ) {
-    setAdminError(null)
-    setActiveMemberAction(actionKey)
-    try {
-      await action()
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: profileKeys.pending }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.approvedMembers }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.approved }),
-      ])
-    } catch (error) {
-      setAdminError(
-        error instanceof Error ? error.message : failureMessage,
-      )
-    } finally {
-      setActiveMemberAction(null)
-    }
+    await removeMember(userId)
   }
 
   const themePreferenceCard = <ThemePreferenceCard />
@@ -414,47 +378,10 @@ function SettingsPage() {
 }
 
 function ThemePreferenceCard() {
-  const [mode, setMode] = useState<ThemeMode>('auto')
-
-  useEffect(() => {
-    const initialMode = getStoredThemeMode()
-    setMode(initialMode)
-    applyThemeMode(initialMode)
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'auto') {
-      return
-    }
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => applyThemeMode('auto')
-
-    media.addEventListener('change', onChange)
-    return () => {
-      media.removeEventListener('change', onChange)
-    }
-  }, [mode])
-
-  useEffect(() => {
-    function handleThemeUpdate() {
-      const nextMode = getStoredThemeMode()
-      setMode(nextMode)
-      applyThemeMode(nextMode)
-    }
-
-    window.addEventListener('themechange', handleThemeUpdate)
-    window.addEventListener('storage', handleThemeUpdate)
-    return () => {
-      window.removeEventListener('themechange', handleThemeUpdate)
-      window.removeEventListener('storage', handleThemeUpdate)
-    }
-  }, [])
+  const { mode, setMode } = useThemePreference()
 
   function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextMode = event.target.value as ThemeMode
-    setMode(nextMode)
-    setThemeMode(nextMode)
+    setMode(event.target.value as ThemeMode)
   }
 
   return (

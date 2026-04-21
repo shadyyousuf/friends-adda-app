@@ -1,9 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../hooks/usePwaUpdate', () => ({
+  usePwaUpdate: () => ({
+    isOfflineReady: false,
+    isUpdateReady: false,
+    isUpdating: false,
+    applyUpdate: async () => {},
+  }),
+}))
+
 import { Route } from './__root'
 
 describe('Root route head metadata', () => {
-  it('includes the manifest link and Apple PWA metadata', () => {
-    const head = Route.options.head?.()
+  it('includes the manifest link and Apple PWA metadata', async () => {
+    const head = await Route.options.head?.({} as never)
 
     expect(head).toBeDefined()
     expect(head?.links).toEqual(
