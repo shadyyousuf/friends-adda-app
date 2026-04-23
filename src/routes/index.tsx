@@ -1,8 +1,11 @@
+import { Plus } from 'lucide-react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import AnimatedContentLoader from '../components/AnimatedContentLoader'
 import { useAuth } from '../components/AuthProvider'
+import EventDetailDrawer from '../components/events/detail/EventDetailDrawer'
+import { InfoItem } from '../components/events/EventTypeHelpers'
 import { useDashboardRefreshRegistration } from '../hooks/useDashboardRefresh'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import {
@@ -10,10 +13,12 @@ import {
   dashboardQueryOptions,
   eventKeys,
   joinPublicEvent,
+  publicDiscoverEventDetailQueryOptions,
   type DashboardData,
   type EventType,
   type EventVisibility,
   type EventWithRole,
+  type PublicDiscoverEventDetail,
 } from '../utils/events'
 
 export const Route = createFileRoute('/')({
@@ -91,10 +96,18 @@ function HomePage() {
   const [monthlyDefaultAmount, setMonthlyDefaultAmount] = useState('')
   const [isCreatingEvent, setIsCreatingEvent] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [joinError, setJoinError] = useState<string | null>(null)
-  const [activeJoinEventId, setActiveJoinEventId] = useState<string | null>(null)
+  const [discoverJoinError, setDiscoverJoinError] = useState<string | null>(
+    null,
+  )
+  const [activeDiscoverEvent, setActiveDiscoverEvent] = useState<
+    DashboardData['discoverEvents'][number] | null
+  >(null)
+  const [activeJoinEventId, setActiveJoinEventId] = useState<string | null>(
+    null,
+  )
   const isFundTracker = eventType === 'fund_tracker'
   const userId = user?.id ?? ''
+  const activeDiscoverEventId = activeDiscoverEvent?.id ?? ''
 
   const canLoadDashboard =
     authStatus === 'signed-in' && Boolean(user && profile?.is_approved)
@@ -102,23 +115,31 @@ function HomePage() {
     ...dashboardQueryOptions(userId),
     enabled: canLoadDashboard,
   })
+  const discoverDetailQuery = useQuery({
+    ...publicDiscoverEventDetailQueryOptions(userId, activeDiscoverEventId),
+    enabled: canLoadDashboard && Boolean(activeDiscoverEventId),
+  })
   const dashboardData: DashboardData = dashboardQuery.data ?? {
     myEvents: [],
     discoverEvents: [],
   }
+  const discoverDetailData = discoverDetailQuery.data ?? null
   const dashboardError =
     dashboardQuery.error instanceof Error
       ? dashboardQuery.error.message
       : dashboardQuery.error
         ? 'Failed to load dashboard.'
         : null
+  const discoverDetailError =
+    discoverDetailQuery.error instanceof Error
+      ? discoverDetailQuery.error.message
+      : discoverDetailQuery.error
+        ? 'Failed to load extra event details.'
+        : null
 
-  useDashboardRefreshRegistration(
-    async () => {
-      await dashboardQuery.refetch()
-    },
-    canLoadDashboard,
-  )
+  useDashboardRefreshRegistration(async () => {
+    await dashboardQuery.refetch()
+  }, canLoadDashboard)
 
   useEffect(() => {
     if (search.create !== '1') {
@@ -179,7 +200,8 @@ function HomePage() {
       if (
         eventType === 'fund_tracker' &&
         normalizedTargetAmount !== null &&
-        (!Number.isFinite(normalizedTargetAmount) || normalizedTargetAmount <= 0)
+        (!Number.isFinite(normalizedTargetAmount) ||
+          normalizedTargetAmount <= 0)
       ) {
         throw new Error('Target amount must be greater than zero.')
       }
@@ -209,7 +231,10 @@ function HomePage() {
         queryKey: eventKeys.dashboard(userId),
       })
 
-      void navigate({ to: '/events/$eventId', params: { eventId: createdEvent.id } })
+      void navigate({
+        to: '/events/$eventId',
+        params: { eventId: createdEvent.id },
+      })
       setTitle('')
       setDescription('')
       setEventType('general')
@@ -227,8 +252,18 @@ function HomePage() {
     }
   }
 
+  function openDiscoverDrawer(event: DashboardData['discoverEvents'][number]) {
+    setDiscoverJoinError(null)
+    setActiveDiscoverEvent(event)
+  }
+
+  function closeDiscoverDrawer() {
+    setDiscoverJoinError(null)
+    setActiveDiscoverEvent(null)
+  }
+
   async function handleJoinEvent(eventId: string) {
-    setJoinError(null)
+    setDiscoverJoinError(null)
     setActiveJoinEventId(eventId)
 
     try {
@@ -236,8 +271,11 @@ function HomePage() {
       await queryClient.invalidateQueries({
         queryKey: eventKeys.dashboard(userId),
       })
+      closeDiscoverDrawer()
     } catch (error) {
-      setJoinError(error instanceof Error ? error.message : 'Failed to join event.')
+      setDiscoverJoinError(
+        error instanceof Error ? error.message : 'Failed to join event.',
+      )
     } finally {
       setActiveJoinEventId(null)
     }
@@ -264,10 +302,9 @@ function HomePage() {
 
   return (
     <div className="stack-lg">
-      {dashboardError || joinError ? (
+      {dashboardError ? (
         <section className="glass-card panel stack-md">
-          {dashboardError ? <p className="form-error">{dashboardError}</p> : null}
-          {joinError ? <p className="form-error">{joinError}</p> : null}
+          <p className="form-error">{dashboardError}</p>
         </section>
       ) : null}
 
@@ -281,8 +318,8 @@ function HomePage() {
         </div>
         {!isOnline ? (
           <p className="field-label">
-            You are offline. Cached reads stay available, but creating or joining
-            events is disabled until you reconnect.
+            You are offline. Cached reads stay available, but creating or
+            joining events is disabled until you reconnect.
           </p>
         ) : null}
 
@@ -315,7 +352,9 @@ function HomePage() {
             <p className="eyebrow">Discover</p>
             <h3 className="section-title">Join an open public event</h3>
           </div>
-          <span className="status-chip">{dashboardData.discoverEvents.length}</span>
+          <span className="status-chip">
+            {dashboardData.discoverEvents.length}
+          </span>
         </div>
 
         {dashboardData.discoverEvents.length === 0 ? (
@@ -328,17 +367,37 @@ function HomePage() {
               <DiscoverEventCard
                 key={event.id}
                 event={event}
-                isJoining={activeJoinEventId === event.id}
-                isOnline={isOnline}
-                onJoin={() => void handleJoinEvent(event.id)}
+                onOpen={() => openDiscoverDrawer(event)}
               />
             ))}
           </div>
         )}
       </section>
 
+      <DiscoverEventDrawer
+        event={activeDiscoverEvent}
+        detail={discoverDetailData}
+        detailError={discoverDetailError}
+        isDetailResolved={discoverDetailQuery.isFetched}
+        isLoadingDetail={
+          discoverDetailQuery.isPending || discoverDetailQuery.isFetching
+        }
+        isJoining={activeJoinEventId === activeDiscoverEvent?.id}
+        isOnline={isOnline}
+        joinError={discoverJoinError}
+        onClose={closeDiscoverDrawer}
+        onJoin={() =>
+          activeDiscoverEvent
+            ? void handleJoinEvent(activeDiscoverEvent.id)
+            : undefined
+        }
+      />
+
       {isCreateOpen ? (
-        <section className="drawer-overlay" onClick={() => setIsCreateOpen(false)}>
+        <section
+          className="drawer-overlay"
+          onClick={() => setIsCreateOpen(false)}
+        >
           <div
             className="glass-card create-drawer"
             onClick={(event) => event.stopPropagation()}
@@ -406,7 +465,9 @@ function HomePage() {
                   <select
                     className="field-input"
                     value={eventType}
-                    onChange={(event) => setEventType(event.target.value as EventType)}
+                    onChange={(event) =>
+                      setEventType(event.target.value as EventType)
+                    }
                   >
                     <option value="general">General</option>
                     <option value="fund_tracker">Fund tracker</option>
@@ -434,7 +495,9 @@ function HomePage() {
               {isFundTracker ? (
                 <div className="create-form-row">
                   <label className="stack-xs">
-                    <span className="field-label">Target amount (optional)</span>
+                    <span className="field-label">
+                      Target amount (optional)
+                    </span>
                     <input
                       type="number"
                       min="1"
@@ -494,7 +557,6 @@ function HomePage() {
           </div>
         </section>
       ) : null}
-
     </div>
   )
 }
@@ -531,8 +593,14 @@ function GuestLanding() {
         </div>
 
         <div className="guest-hero-showcase">
-          <div className="guest-hero-orb guest-hero-orb-primary" aria-hidden="true" />
-          <div className="guest-hero-orb guest-hero-orb-secondary" aria-hidden="true" />
+          <div
+            className="guest-hero-orb guest-hero-orb-primary"
+            aria-hidden="true"
+          />
+          <div
+            className="guest-hero-orb guest-hero-orb-secondary"
+            aria-hidden="true"
+          />
 
           <div className="glass-card guest-showcase-card">
             <div className="guest-showcase-head">
@@ -559,7 +627,9 @@ function GuestLanding() {
                 <article key={item.title} className="guest-preview-item">
                   <div className="guest-preview-dot" aria-hidden="true" />
                   <div className="stack-xs">
-                    <strong className="guest-preview-title">{item.title}</strong>
+                    <strong className="guest-preview-title">
+                      {item.title}
+                    </strong>
                     <p className="guest-preview-meta">{item.meta}</p>
                   </div>
                 </article>
@@ -585,7 +655,9 @@ function GuestLanding() {
       <section className="glass-card panel guest-journey">
         <div className="stack-xs">
           <p className="eyebrow">How it works</p>
-          <h3 className="panel-title">Go from invite to active event in minutes.</h3>
+          <h3 className="panel-title">
+            Go from invite to active event in minutes.
+          </h3>
         </div>
 
         <div className="guest-journey-grid">
@@ -618,14 +690,14 @@ function MyEventCard({ event }: { event: EventWithRole }) {
           </div>
           <div className="stack-xs event-badges">
             <span className="event-badge event-badge-strong event-type-badge">
-            <span
-              className="event-type-icon"
-              aria-hidden="true"
-              aria-label={formatEventType(event.type)}
-              title={formatEventType(event.type)}
-            >
-              {getEventTypeIcon(event.type)}
-            </span>
+              <span
+                className="event-type-icon"
+                aria-hidden="true"
+                aria-label={formatEventType(event.type)}
+                title={formatEventType(event.type)}
+              >
+                {getEventTypeIcon(event.type)}
+              </span>
             </span>
           </div>
         </div>
@@ -642,22 +714,18 @@ function MyEventCard({ event }: { event: EventWithRole }) {
 
 function DiscoverEventCard({
   event,
-  isJoining,
-  isOnline,
-  onJoin,
+  onOpen,
 }: {
   event: DashboardData['discoverEvents'][number]
-  isJoining: boolean
-  isOnline: boolean
-  onJoin: () => void
+  onOpen: () => void
 }) {
+  const openLabel = `Open details for ${event.title}`
+
   return (
-    <article className="event-card event-card-slide">
-        <div className="split-header">
-          <div className="stack-xs">
-            <strong className="info-value">{event.title}</strong>
-          </div>
-          <span className="event-badge event-badge-strong event-type-badge">
+    <article className="event-card event-card-slide discover-event-card">
+      <div className="discover-event-card-content">
+        <div className="stack-xs">
+          <div className="discover-event-title-row">
             <span
               className="event-type-icon"
               aria-hidden="true"
@@ -666,25 +734,156 @@ function DiscoverEventCard({
             >
               {getEventTypeIcon(event.type)}
             </span>
+            <strong className="info-value">{event.title}</strong>
+          </div>
+        </div>
+        <div className="event-card-footer">
+          <span className="field-label">Status: {event.status}</span>
+          <span className="field-label">
+            Date: {formatDisplayDate(event.event_date, event.created_at)}
           </span>
+        </div>
       </div>
-      <div className="event-card-footer">
-        <span className="field-label">Status: {event.status}</span>
-        <span className="field-label">
-          Date: {formatDisplayDate(event.event_date, event.created_at)}
-        </span>
-      </div>
-      <div className="actions-row">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={onJoin}
-          disabled={isJoining || !isOnline}
-        >
-          {!isOnline ? 'Reconnect to join' : isJoining ? 'Joining...' : 'Join event'}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="discover-event-card-hitarea"
+        aria-label={openLabel}
+        title={openLabel}
+        onClick={onOpen}
+      />
+      <button
+        type="button"
+        className="icon-button discover-event-open-button"
+        aria-label={openLabel}
+        title={openLabel}
+        onClick={onOpen}
+      >
+        <Plus size={18} strokeWidth={2.2} />
+      </button>
     </article>
+  )
+}
+
+function DiscoverEventDrawer({
+  event,
+  detail,
+  detailError,
+  isDetailResolved,
+  isLoadingDetail,
+  isJoining,
+  isOnline,
+  joinError,
+  onClose,
+  onJoin,
+}: {
+  event: DashboardData['discoverEvents'][number] | null
+  detail: PublicDiscoverEventDetail | null
+  detailError: string | null
+  isDetailResolved: boolean
+  isLoadingDetail: boolean
+  isJoining: boolean
+  isOnline: boolean
+  joinError: string | null
+  onClose: () => void
+  onJoin: () => void
+}) {
+  if (!event) {
+    return null
+  }
+
+  const resolvedEvent = detail?.event ?? event
+  const isUnavailable = isDetailResolved && detail?.event === null
+  const organizerLabel = detail?.organizer
+    ? getDiscoverOrganizerLabel(detail.organizer)
+    : isUnavailable || detailError
+      ? '—'
+      : isLoadingDetail
+        ? 'Loading...'
+        : 'Unknown organizer'
+  const memberCountLabel =
+    typeof detail?.memberCount === 'number'
+      ? String(detail.memberCount)
+      : isUnavailable || detailError
+        ? '—'
+        : isLoadingDetail
+          ? 'Loading...'
+          : '0'
+
+  return (
+    <EventDetailDrawer
+      isOpen={Boolean(event)}
+      eyebrow="Discover event"
+      title="Event details"
+      onClose={onClose}
+    >
+      <div className="stack-md">
+        <section className="stack-sm">
+          <div className="stack-xs">
+            <div className="discover-event-title-row">
+              <span
+                className="event-type-icon"
+                aria-hidden="true"
+                aria-label={formatEventType(resolvedEvent.type)}
+                title={formatEventType(resolvedEvent.type)}
+              >
+                {getEventTypeIcon(resolvedEvent.type)}
+              </span>
+              <h4 className="panel-title">{resolvedEvent.title}</h4>
+            </div>
+            <p className="section-note">
+              {resolvedEvent.description ||
+                'No description added for this event yet.'}
+            </p>
+          </div>
+
+          {isUnavailable ? (
+            <p className="form-error">This event is no longer available.</p>
+          ) : null}
+          {detailError ? <p className="field-label">{detailError}</p> : null}
+        </section>
+
+        <div className="info-grid discover-event-drawer-meta">
+          <InfoItem label="Type" value={formatEventType(resolvedEvent.type)} />
+          <InfoItem label="Status" value={resolvedEvent.status} />
+          <InfoItem
+            label="Date"
+            value={formatDisplayDate(
+              resolvedEvent.event_date,
+              resolvedEvent.created_at,
+            )}
+          />
+          <InfoItem
+            label="Visibility"
+            value={formatVisibility(resolvedEvent.visibility)}
+          />
+          <InfoItem label="Organizer" value={organizerLabel} />
+          <InfoItem label="Members" value={memberCountLabel} />
+        </div>
+
+        {joinError ? <p className="form-error">{joinError}</p> : null}
+        {!isOnline ? (
+          <p className="field-label">
+            Reconnect to join this event. Offline mode keeps existing reads
+            available only.
+          </p>
+        ) : null}
+
+        <div className="actions-row create-drawer-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onJoin}
+            disabled={isJoining || !isOnline || isUnavailable}
+          >
+            {!isOnline
+              ? 'Reconnect to join'
+              : isJoining
+                ? 'Joining...'
+                : 'Join event'}
+          </button>
+        </div>
+      </div>
+    </EventDetailDrawer>
   )
 }
 
@@ -694,6 +893,10 @@ function formatEventType(type: EventType) {
   }
 
   return type === 'fund_tracker' ? 'Fund Tracker' : 'Random Picker'
+}
+
+function formatVisibility(visibility: EventVisibility) {
+  return visibility === 'private' ? 'Private' : 'Public'
 }
 
 function getEventTypeIcon(type: EventType) {
@@ -725,6 +928,24 @@ function formatDisplayDate(eventDate: string, createdAt: string) {
   }
 
   return selectedDate.toLocaleDateString()
+}
+
+function getDiscoverOrganizerLabel(organizer: {
+  full_name?: string | null
+  email?: string | null
+}) {
+  const fullName = organizer.full_name?.trim()
+  const email = organizer.email?.trim()
+
+  if (fullName) {
+    return fullName
+  }
+
+  if (email) {
+    return email
+  }
+
+  return 'Unknown organizer'
 }
 
 function getTodayDateInputValue() {

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, vi } from 'vitest'
 import {
   completedEventsQueryOptions,
   dashboardQueryOptions,
+  publicDiscoverEventDetailQueryOptions,
   type DashboardData,
   type EventWithRole,
 } from './events'
@@ -11,8 +12,9 @@ const mocks = vi.hoisted(() => ({
   fromMock: vi.fn(),
 }))
 
-function createChain<T>(result: { data: T; error: null }) {
+function createOrderedChain<T>(result: { data: T; error: null }) {
   const chain = {
+    maybeSingle: vi.fn(),
     select: vi.fn(),
     eq: vi.fn(),
     order: vi.fn(),
@@ -21,20 +23,54 @@ function createChain<T>(result: { data: T; error: null }) {
   chain.select.mockReturnValue(chain)
   chain.eq.mockReturnValue(chain)
   chain.order.mockResolvedValue(result)
+  chain.maybeSingle.mockResolvedValue(result)
 
   return chain
 }
 
-let eventSubscribersChain = createChain({ data: [], error: null })
-let eventsChain = createChain({ data: [], error: null })
+function createCountChain(result: {
+  count: number | null
+  data: null
+  error: null
+}) {
+  const chain = {
+    select: vi.fn(),
+    eq: vi.fn(),
+  }
+
+  chain.select.mockReturnValue(chain)
+  chain.eq.mockResolvedValue(result)
+
+  return chain
+}
+
+let eventSubscribersChain = createOrderedChain({ data: [], error: null })
+let eventSubscribersCountChain = createCountChain({
+  count: 0,
+  data: null,
+  error: null,
+})
+let eventsChain = createOrderedChain({ data: [], error: null })
+let profilesChain = createOrderedChain({ data: null, error: null })
 
 mocks.fromMock.mockImplementation((table: string) => {
   if (table === 'event_subscribers') {
-    return eventSubscribersChain
+    return {
+      select: (...args: unknown[]) => {
+        const chain = args[1]
+          ? eventSubscribersCountChain
+          : eventSubscribersChain
+        return chain.select(...args)
+      },
+    }
   }
 
   if (table === 'events') {
     return eventsChain
+  }
+
+  if (table === 'profiles') {
+    return profilesChain
   }
 
   throw new Error(`Unexpected table lookup: ${table}`)
@@ -53,18 +89,27 @@ describe('event query helpers', () => {
   beforeEach(() => {
     mocks.getUserMock.mockReset()
     mocks.fromMock.mockClear()
-    eventSubscribersChain = createChain({
+    eventSubscribersChain = createOrderedChain({
       data: [],
       error: null,
     })
-    eventsChain = createChain({
+    eventSubscribersCountChain = createCountChain({
+      count: 0,
+      data: null,
+      error: null,
+    })
+    eventsChain = createOrderedChain({
       data: [],
+      error: null,
+    })
+    profilesChain = createOrderedChain({
+      data: null,
       error: null,
     })
   })
 
   it('loads the dashboard using the provided user id without calling auth.getUser', async () => {
-    eventSubscribersChain = createChain({
+    eventSubscribersChain = createOrderedChain({
       data: [
         {
           event_role: 'member',
@@ -97,7 +142,7 @@ describe('event query helpers', () => {
       ],
       error: null,
     })
-    eventsChain = createChain({
+    eventsChain = createOrderedChain({
       data: [
         {
           id: 'event-1',
@@ -150,7 +195,7 @@ describe('event query helpers', () => {
   })
 
   it('loads completed history using the provided user id without calling auth.getUser', async () => {
-    eventSubscribersChain = createChain({
+    eventSubscribersChain = createOrderedChain({
       data: [
         {
           event_role: 'captain',
@@ -183,5 +228,71 @@ describe('event query helpers', () => {
         event_role: 'captain',
       }),
     ])
+  })
+
+  it('loads public discover detail using a public-safe event query', async () => {
+    eventsChain = createOrderedChain({
+      data: {
+        id: 'event-2',
+        title: 'Tea Stall Meetup',
+        description: 'Public tea hangout',
+        type: 'general',
+        event_date: '2026-04-22',
+        status: 'open',
+        visibility: 'public',
+        target_amount: null,
+        monthly_default_amount: null,
+        created_by: 'admin-1',
+        created_at: '2026-04-20T00:00:00.000Z',
+      },
+      error: null,
+    })
+    eventSubscribersCountChain = createCountChain({
+      count: 7,
+      data: null,
+      error: null,
+    })
+    profilesChain = createOrderedChain({
+      data: {
+        full_name: null,
+        email: 'organizer@example.com',
+      },
+      error: null,
+    })
+
+    const query = publicDiscoverEventDetailQueryOptions('user-42', 'event-2')
+    const queryFn = query.queryFn as unknown as () => Promise<{
+      event: { id: string; created_by: string }
+      memberCount: number | null
+      organizer: { full_name: string | null; email: string | null } | null
+    }>
+    const result = await queryFn()
+
+    expect(query.queryKey).toEqual([
+      'events',
+      'discover-detail',
+      'user-42',
+      'event-2',
+    ])
+    expect(mocks.getUserMock).not.toHaveBeenCalled()
+    expect(eventsChain.eq).toHaveBeenCalledWith('id', 'event-2')
+    expect(eventsChain.eq).toHaveBeenCalledWith('visibility', 'public')
+    expect(eventsChain.eq).toHaveBeenCalledWith('status', 'open')
+    expect(eventSubscribersCountChain.select).toHaveBeenCalledWith('*', {
+      count: 'exact',
+      head: true,
+    })
+    expect(profilesChain.eq).toHaveBeenCalledWith('id', 'admin-1')
+    expect(result).toEqual({
+      event: expect.objectContaining({
+        id: 'event-2',
+        created_by: 'admin-1',
+      }),
+      memberCount: 7,
+      organizer: {
+        full_name: null,
+        email: 'organizer@example.com',
+      },
+    })
   })
 })

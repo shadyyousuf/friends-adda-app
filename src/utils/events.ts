@@ -40,7 +40,10 @@ export type DashboardData = {
 }
 
 export type EventSubscriberWithProfile = SubscriberRow & {
-  profiles: Pick<ProfileRow, 'id' | 'email' | 'full_name' | 'blood_group' | 'role'>
+  profiles: Pick<
+    ProfileRow,
+    'id' | 'email' | 'full_name' | 'blood_group' | 'role'
+  >
 }
 
 export type EventDetailData = {
@@ -50,8 +53,16 @@ export type EventDetailData = {
   activities: ActivityRow[]
 }
 
+export type PublicDiscoverEventDetail = {
+  event: EventRow | null
+  memberCount: number | null
+  organizer: Pick<ProfileRow, 'email' | 'full_name'> | null
+}
+
 export const eventKeys = {
   dashboard: (userId: string) => ['events', 'dashboard', userId] as const,
+  discoverDetail: (userId: string, eventId: string) =>
+    ['events', 'discover-detail', userId, eventId] as const,
   history: (userId: string) => ['events', 'history', userId] as const,
   detail: (userId: string, eventId: string) =>
     ['events', 'detail', userId, eventId] as const,
@@ -68,6 +79,16 @@ export function eventDetailQueryOptions(userId: string, eventId: string) {
   return queryOptions({
     queryKey: eventKeys.detail(userId, eventId),
     queryFn: () => loadEventDetail(eventId),
+  })
+}
+
+export function publicDiscoverEventDetailQueryOptions(
+  userId: string,
+  eventId: string,
+) {
+  return queryOptions({
+    queryKey: eventKeys.discoverDetail(userId, eventId),
+    queryFn: () => loadPublicDiscoverEventDetail(eventId),
   })
 }
 
@@ -145,6 +166,55 @@ async function loadDashboardData(userId: string): Promise<DashboardData> {
   }
 }
 
+async function loadPublicDiscoverEventDetail(
+  eventId: string,
+): Promise<PublicDiscoverEventDetail> {
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('*')
+    .eq('id', eventId)
+    .eq('visibility', 'public')
+    .eq('status', 'open')
+    .maybeSingle()
+
+  if (eventError) {
+    throw eventError
+  }
+
+  if (!event) {
+    return {
+      event: null,
+      memberCount: null,
+      organizer: null,
+    }
+  }
+
+  const { count, error: memberCountError } = await supabase
+    .from('event_subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+
+  if (memberCountError) {
+    throw memberCountError
+  }
+
+  const { data: organizer, error: organizerError } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', event.created_by)
+    .maybeSingle()
+
+  if (organizerError) {
+    throw organizerError
+  }
+
+  return {
+    event,
+    memberCount: count ?? 0,
+    organizer,
+  }
+}
+
 export async function createEventWithCaptain({
   title,
   description,
@@ -212,7 +282,9 @@ export async function joinPublicEvent(eventId: string) {
   return data
 }
 
-export async function loadEventDetail(eventId: string): Promise<EventDetailData> {
+export async function loadEventDetail(
+  eventId: string,
+): Promise<EventDetailData> {
   const { data: event, error: eventError } = await supabase
     .from('events')
     .select('*')
@@ -286,9 +358,8 @@ export async function loadEventDetail(eventId: string): Promise<EventDetailData>
   return {
     event,
     subscribers: normalizedSubscribers.filter(
-      (
-        subscriber,
-      ): subscriber is EventSubscriberWithProfile => Boolean(subscriber.profiles),
+      (subscriber): subscriber is EventSubscriberWithProfile =>
+        Boolean(subscriber.profiles),
     ),
     funds: funds ?? [],
     activities: activities ?? [],
@@ -402,7 +473,10 @@ export async function updateEvent(input: UpdateEventInput) {
   return data
 }
 
-export async function demoteEventMemberToMember(eventId: string, userId: string) {
+export async function demoteEventMemberToMember(
+  eventId: string,
+  userId: string,
+) {
   assertOnlineForMutation('update event roles.')
 
   const { data, error } = await supabase.rpc('demote_event_member_to_member', {
@@ -477,7 +551,10 @@ export async function spinRandomPicker(eventId: string, amount: number) {
   return data
 }
 
-export async function updateRandomPickerWinnerAmount(activityId: string, amount: number) {
+export async function updateRandomPickerWinnerAmount(
+  activityId: string,
+  amount: number,
+) {
   assertOnlineForMutation('update winner amounts.')
 
   const { data, error } = await supabase.rpc(
@@ -495,7 +572,9 @@ export async function updateRandomPickerWinnerAmount(activityId: string, amount:
   return data
 }
 
-export function extractRandomPickerWinnerId(activity: ActivityRow): string | null {
+export function extractRandomPickerWinnerId(
+  activity: ActivityRow,
+): string | null {
   const payload = activity.payload
 
   if (!payload || typeof payload !== 'object' || !('winner' in payload)) {

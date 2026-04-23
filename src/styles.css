@@ -1,5 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import 'tailwindcss';
 @plugin "@tailwindcss/typography";
 
 @theme {
@@ -16,8 +16,8 @@
 
 :root {
   color-scheme: dark;
-  --font-body: "Manrope", "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk", "Avenir Next", sans-serif;
+  --font-body: 'Manrope', 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Avenir Next', sans-serif;
   --page-wrap: min(100%, 72rem);
   --mobile-frame-top-space: max(0.35rem, env(safe-area-inset-top));
   --mobile-frame-inline-space: 1rem;
@@ -53,7 +53,11 @@
   --nav-bg: #0c1828;
   --nav-active-bg: rgba(87, 209, 190, 0.14);
   --nav-active-border: rgba(157, 230, 216, 0.12);
-  --empty-bg: linear-gradient(180deg, rgba(87, 209, 190, 0.06), rgba(255, 255, 255, 0.03));
+  --empty-bg: linear-gradient(
+    180deg,
+    rgba(87, 209, 190, 0.06),
+    rgba(255, 255, 255, 0.03)
+  );
   --empty-border: rgba(157, 230, 216, 0.22);
 }
 
@@ -89,7 +93,11 @@
   --nav-bg: #ffffff;
   --nav-active-bg: rgba(47, 180, 164, 0.12);
   --nav-active-border: rgba(47, 180, 164, 0.16);
-  --empty-bg: linear-gradient(180deg, rgba(47, 180, 164, 0.08), rgba(255, 255, 255, 0.72));
+  --empty-bg: linear-gradient(
+    180deg,
+    rgba(47, 180, 164, 0.08),
+    rgba(255, 255, 255, 0.72)
+  );
   --empty-border: rgba(47, 180, 164, 0.18);
 }
 
@@ -112,8 +120,17 @@ body {
   color: var(--text-primary);
   background:
     radial-gradient(circle at top, var(--bg-glow-primary), transparent 34%),
-    radial-gradient(circle at bottom right, var(--bg-glow-secondary), transparent 30%),
-    linear-gradient(180deg, var(--bg-page-start) 0%, var(--bg-page-mid) 50%, var(--bg-page-end) 100%);
+    radial-gradient(
+      circle at bottom right,
+      var(--bg-glow-secondary),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      var(--bg-page-start) 0%,
+      var(--bg-page-mid) 50%,
+      var(--bg-page-end) 100%
+    );
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -200,10 +217,11 @@ textarea {
   z-index: 1;
   width: min(100%, 30rem);
   margin: 0 auto;
-  padding:
-    var(--mobile-frame-top-space)
-    var(--mobile-frame-inline-space)
-    calc(var(--mobile-frame-bottom-offset, var(--mobile-frame-bottom-space)) + env(safe-area-inset-bottom));
+  padding: var(--mobile-frame-top-space) var(--mobile-frame-inline-space)
+    calc(
+      var(--mobile-frame-bottom-offset, var(--mobile-frame-bottom-space)) +
+        env(safe-area-inset-bottom)
+    );
 }
 
 .mobile-frame-no-nav {
@@ -524,7 +542,7 @@ textarea {
 
 .animated-loader-card::before,
 .animated-loader-panel::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -738,8 +756,16 @@ textarea {
   overflow: hidden;
   min-height: 39rem;
   background:
-    radial-gradient(circle at top left, rgba(87, 209, 190, 0.22), transparent 36%),
-    radial-gradient(circle at bottom right, rgba(127, 217, 255, 0.2), transparent 42%),
+    radial-gradient(
+      circle at top left,
+      rgba(87, 209, 190, 0.22),
+      transparent 36%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(127, 217, 255, 0.2),
+      transparent 42%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface) 94%, transparent),
@@ -836,12 +862,11 @@ textarea {
   gap: 1rem;
   border-radius: 1.5rem;
   padding: 1.1rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-soft) 88%, transparent),
-      color-mix(in srgb, var(--surface) 92%, transparent)
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-soft) 88%, transparent),
+    color-mix(in srgb, var(--surface) 92%, transparent)
+  );
 }
 
 .guest-showcase-head {
@@ -962,12 +987,11 @@ textarea {
 .guest-feature-card {
   min-height: 11.5rem;
   align-content: start;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-soft) 84%, transparent),
-      color-mix(in srgb, var(--surface) 90%, transparent)
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-soft) 84%, transparent),
+    color-mix(in srgb, var(--surface) 90%, transparent)
+  );
 }
 
 .guest-feature-title {
@@ -1417,6 +1441,60 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 
+.discover-event-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.discover-event-card-content {
+  display: grid;
+  gap: 0.9rem;
+  padding-right: 3.45rem;
+}
+
+.discover-event-card-hitarea {
+  position: absolute;
+  inset: 0;
+  right: 3.4rem;
+  z-index: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 1rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.discover-event-card-hitarea:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--focus-ring);
+}
+
+.discover-event-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.discover-event-title-row .info-value,
+.discover-event-title-row .panel-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.discover-event-open-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.discover-event-drawer-meta {
+  align-items: stretch;
+}
+
 .event-type-badge {
   min-height: 2rem;
   width: 2.5rem;
@@ -1705,7 +1783,9 @@ textarea:focus-visible {
   background: linear-gradient(135deg, #9de6d8 0%, #57d1be 45%, #7fd9ff 100%);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .fab-button:hover,
@@ -1947,7 +2027,7 @@ textarea:focus-visible {
 }
 
 .history-timeline::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0.6rem;
   top: 0.25rem;
@@ -2012,7 +2092,9 @@ textarea:focus-visible {
   text-decoration: none;
   background: linear-gradient(135deg, #9de6d8 0%, #57d1be 45%, #7fd9ff 100%);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .bottom-nav-create-link:hover,
@@ -2076,8 +2158,17 @@ textarea:focus-visible {
   border-radius: 1.35rem;
   padding: 1.15rem;
   background:
-    radial-gradient(circle at top right, rgba(127, 217, 255, 0.22), transparent 30%),
-    linear-gradient(135deg, rgba(87, 209, 190, 0.26), rgba(11, 21, 36, 0.16) 48%, rgba(127, 217, 255, 0.24));
+    radial-gradient(
+      circle at top right,
+      rgba(127, 217, 255, 0.22),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(87, 209, 190, 0.26),
+      rgba(11, 21, 36, 0.16) 48%,
+      rgba(127, 217, 255, 0.24)
+    );
   border: 1px solid rgba(157, 230, 216, 0.14);
 }
 
